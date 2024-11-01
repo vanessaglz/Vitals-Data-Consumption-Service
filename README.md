@@ -1,6 +1,6 @@
 # Vitals-Data-Consumption-Service
 
-WIP
+This change was made for testing purposes.
 
 # Documentation
 

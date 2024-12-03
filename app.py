@@ -9,6 +9,9 @@ app = Flask(__name__)
 if os.path.exists('.env'):
     load_dotenv()
 
+os.environ['OAUTHLIB_INSECURE_TRANSPORT'] = '1'
+app.secret_key = os.environ.get('APP_SECRET_KEY')
+
 app.register_blueprint(vitals_data_retrieving_api, url_prefix='/vitals_data_retrieving')
 
 if __name__ == '__main__':

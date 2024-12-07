@@ -1,3 +1,6 @@
+import os
+
+from dotenv import load_dotenv
 from flask import Blueprint, request, redirect, render_template, session
 from typing import Tuple
 from http import HTTPStatus
@@ -34,9 +37,15 @@ def callback() -> Response:
 
     Endpoint-> /vitals_data_retrieving/callback
     """
+    if os.path.exists('.env'):
+        load_dotenv()
+
+    user_info_url = os.environ.get('USER_INFO_URL')
+
     service = VitalsDataRetrievingService(data_retriever)
     session['oauth_token'] = service.callback_action(request.url)
-    return redirect(f'http://127.0.0.1:5500/user.html?token={session["oauth_token"]["access_token"]}')
+    endpoint = user_info_url + session['oauth_token']['access_token']
+    return redirect(endpoint)
 
 
 @vitals_data_retrieving_api.route('/get_user_info', methods=['POST'])

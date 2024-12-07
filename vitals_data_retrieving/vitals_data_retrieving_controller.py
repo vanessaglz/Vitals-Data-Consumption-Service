@@ -1,4 +1,5 @@
-from flask import Blueprint, request, redirect
+from flask import Blueprint, request, redirect, render_template, session
+from typing import Tuple
 from http import HTTPStatus
 
 from werkzeug import Response
@@ -14,7 +15,7 @@ data_retriever = FitbitDataRetriever()
 
 
 @vitals_data_retrieving_api.route('/connect_to_api')
-def connect_to_api() -> Response:
+def connect_to_api() -> str:
     """
     Endpoint to connect to the API of the wearable device
     :return: Response: Redirect to the API login page
@@ -22,20 +23,7 @@ def connect_to_api() -> Response:
     Endpoint-> /vitals_data_retrieving/connect_to_api
     """
     service = VitalsDataRetrievingService(data_retriever)
-    return redirect(service.get_access_to_api())
-
-
-@vitals_data_retrieving_api.route('/get_vitals_data', methods=['GET'])
-def get_vitals_data() -> tuple[str, HTTPStatus]:
-    """
-    Endpoint to get vitals data from the wearable device
-    :return: tuple: Data and HTTP status code
-
-    Endpoint-> /vitals_data_retrieving/get_vitals_data
-    """
-    service = VitalsDataRetrievingService(data_retriever)
-    data = service.get_data_from_wearable_device_api()
-    return data, HTTPStatus.OK
+    return service.get_access_to_api()
 
 
 @vitals_data_retrieving_api.route('/callback')
@@ -47,5 +35,38 @@ def callback() -> Response:
     Endpoint-> /vitals_data_retrieving/callback
     """
     service = VitalsDataRetrievingService(data_retriever)
-    service.callback_action(request.url)
-    return redirect('/vitals_data_retrieving/get_vitals_data')
+    session['oauth_token'] = service.callback_action(request.url)
+    return redirect(f'http://127.0.0.1:5500/user.html?token={session["oauth_token"]["access_token"]}')
+
+
+@vitals_data_retrieving_api.route('/get_user_info', methods=['POST'])
+def get_user_info() -> tuple[str, HTTPStatus]:
+    """
+    Endpoint to get user info from the wearable device
+    :return: tuple: User info and HTTP status code
+
+    Endpoint-> /vitals_data_retrieving/get_user_info
+    """
+    data = request.get_json()
+    token = data.get('token')
+    service = VitalsDataRetrievingService(data_retriever)
+    user_info = service.get_user_info_from_api(token)
+    return user_info, HTTPStatus.OK
+
+
+@vitals_data_retrieving_api.route('/get_vitals_data', methods=['POST'])
+def get_vitals_data() -> tuple[str, HTTPStatus]:
+    """
+    Endpoint to get vitals data from the wearable device
+    :return: tuple: Data and HTTP status code
+
+    Endpoint-> /vitals_data_retrieving/get_vitals_data
+    """
+    data = request.get_json()
+    token = data.get('token')
+    start_date = data.get('start_date')
+    end_date = data.get('end_date')
+    scope = data.get('scope')
+    service = VitalsDataRetrievingService(data_retriever)
+    data = service.get_data_from_wearable_device_api(token, start_date, end_date, scope)
+    return data, HTTPStatus.OK

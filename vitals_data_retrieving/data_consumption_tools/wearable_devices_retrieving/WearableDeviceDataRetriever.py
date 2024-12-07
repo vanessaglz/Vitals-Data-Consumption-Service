@@ -13,7 +13,17 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def retrieve_data(self) -> str:
+    def get_user_info(self, token) -> str:
+        """
+        Get user info from the wearable device API
+        :arg: None
+        :return: str: User info
+        """
+        pass
+
+    @abstractmethod
+    def retrieve_data(
+            self, token: str = None, start_date: str = None, end_date: str = None, scope: list[str] = None) -> str:
         """
         Retrieve data from the wearable device by querying the API
         :arg: None

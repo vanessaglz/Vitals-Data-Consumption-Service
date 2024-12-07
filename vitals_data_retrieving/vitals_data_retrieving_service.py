@@ -11,7 +11,6 @@ class VitalsDataRetrievingService:
         :param device_data_retriever: WearableDeviceDataRetriever: The device data retriever passed by dependency injection
         """
         self.device_data_retriever = device_data_retriever
-        pass
 
     def get_access_to_api(self) -> str:
         """
@@ -20,12 +19,20 @@ class VitalsDataRetrievingService:
         """
         return self.device_data_retriever.connect_to_api()
 
-    def get_data_from_wearable_device_api(self) -> str:
+    def get_user_info_from_api(self, token) -> str:
+        """
+        Get user info from the wearable device API
+        :return: str: User info
+        """
+        return self.device_data_retriever.get_user_info(token)
+
+    def get_data_from_wearable_device_api(
+            self, token: str = None, start_date: str = None, end_date: str = None, scope: list[str] = None) -> str:
         """
         Get data from the wearable device API
         :return: str: Data
         """
-        return self.device_data_retriever.retrieve_data()
+        return self.device_data_retriever.retrieve_data(token, start_date, end_date, scope)
 
     def callback_action(self, authorization_response) -> str:
         """
@@ -36,4 +43,4 @@ class VitalsDataRetrievingService:
         authorization_token = self.device_data_retriever.get_authorization_token(authorization_response)
         session['oauth_token'] = authorization_token
         user_id = session.get('oauth_token').get('user_id', None)
-        return user_id
+        return authorization_token

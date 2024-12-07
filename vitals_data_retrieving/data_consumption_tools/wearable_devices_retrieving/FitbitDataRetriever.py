@@ -1,36 +1,54 @@
 from .WearableDeviceDataRetriever import WearableDeviceDataRetriever
+from .FitbitQueryHandler import FitbitQueryHandler
+from .DataScopeEnum import DataScopeEnum
+from http import HTTPStatus
 from dotenv import load_dotenv
-from flask import session, jsonify
+from flask import jsonify
 from requests_oauthlib import OAuth2Session
 from werkzeug import Response
-import requests
 import os
 
 
-def make_data_query() -> Response:
+def make_data_query(token: str = None, start_date: str = None, end_date: str = None,
+                    scope: list[str] = None) -> Response:
     """
-    Fetches data from Fitbit API
-    :arg: None
-    :return: str: Success message
+    Fetches data from Fitbit API for each element in the provided scope.
+    Dynamically calls the associated method from FitbitQueryHandler.
+
+    :param start_date: Optional start date for filtering data.
+    :param end_date: Optional end date for filtering data.
+    :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
+    :return: JSON response with combined data or error message.
     """
     try:
-        access_token = session['oauth_token']['access_token']
-        headers = {'Authorization': f'Bearer {access_token}',
-                   'Accept-Language': 'en_US'}
+        # Initialize the FitbitQueryHandler
+        query_handler = FitbitQueryHandler(token)
 
-        # Data date range
-        # start_date = "2024-11-25"
-        # end_date = "2024-11-30"
+        # To store combined responses
+        combined_data = {}
 
-        # Fetch sleep data
-        sleep_url = f"https://api.fitbit.com/1/user/-/devices.json"
-        sleep_response = requests.get(sleep_url, headers=headers)
-        sleep_data = sleep_response.json()
+        # Loop through the scope and process each element
+        for element in scope:
+            # Get the corresponding enum value for the scope
+            enum_value = DataScopeEnum[element].value
 
-        return jsonify(sleep_data)
+            # Dynamically call the method on the query_handler
+            if hasattr(query_handler, enum_value):
+                method = getattr(query_handler, enum_value)
+                response, status = method(start_date, end_date)
+
+                # Add the response to the combined data
+                if status == HTTPStatus.OK:
+                    combined_data[element] = response
+                else:
+                    combined_data[element] = {"error": f"Failed to fetch {element} data"}
+            else:
+                combined_data[element] = {"error": f"Method {enum_value} not found in FitbitQueryHandler"}
+
+        return jsonify(combined_data)
 
     except Exception as e:
-        return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
+        return jsonify({'error': f"An error occurred: {str(e)}"})
 
 
 class FitbitDataRetriever(WearableDeviceDataRetriever):
@@ -44,13 +62,23 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         self.TOKEN_URL = os.environ.get('TOKEN_URL')
         self.SCOPE = ["heartrate", "respiratory_rate", "sleep", "oxygen_saturation", "settings"]
 
-    def retrieve_data(self) -> Response:
+    def get_user_info(self, token) -> Response:
+        """
+        Get user info from the wearable device API
+        :arg: None
+        :return: user info
+        """
+        user_info = make_data_query(token=token, scope=["user_info"])
+        return user_info
+
+    def retrieve_data(self, token: str = None, start_date: str = None, end_date: str = None,
+                      scope: list[str] = None) -> Response:
         """
         Retrieve data from the wearable device by querying the API
         :arg: None
         :return: data
         """
-        data = make_data_query()
+        data = make_data_query(token, start_date, end_date, scope)
         return data
 
     def get_authorization_token(self, authorization_response) -> dict:

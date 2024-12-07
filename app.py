@@ -1,10 +1,12 @@
 from flask import Flask
+from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
 from vitals_data_retrieving.vitals_data_retrieving_controller import vitals_data_retrieving_api
 
 app = Flask(__name__)
+cors = CORS(app, resources={r"/vitals_data_retrieving/*": {"origins": "*"}})
 
 if os.path.exists('.env'):
     load_dotenv()

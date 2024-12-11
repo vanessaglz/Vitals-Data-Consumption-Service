@@ -6,7 +6,6 @@ from flask import session, jsonify, Response
 import requests
 
 
-
 class FitbitQueryHandler:
     def __init__(self, token: str):
         try:
@@ -15,9 +14,11 @@ class FitbitQueryHandler:
         except KeyError:
             raise KeyError('No access token found in session')
 
-    def get_user_info(self, start_date: str = None, end_date: str = None) -> tuple[str, HTTPStatus] | Response:
+    def get_user_info(self) -> tuple[str, HTTPStatus] | Response:
         """
         Get user info from the wearable device API
+
+        :arg: None
         :return: user info
         """
         try:
@@ -31,14 +32,17 @@ class FitbitQueryHandler:
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
 
-    def get_sleep_data(self, start_date: str = None, end_date: str = None) -> tuple[str, HTTPStatus] | Response:
+    def get_sleep_data(self, date: str = None) -> tuple[str, HTTPStatus] | Response:
         """
-        Get sleep data from the wearable device API
+        Get user's sleep log entries for a given date. The detail level: duration (minutes), efficiency, minutes of
+        the sleep stages (deep, light, rem, wake)
+
+        :param date: Date in 'YYYY-MM-DD' format.
         :return: sleep data
         """
         try:
-            # Fetch sleep data
-            endpoint = f"https://api.fitbit.com/1.2/user/-/sleep/date/{start_date}/{end_date}.json"
+            # Endpoint for Sleep Log by Date data
+            endpoint = f"https://api.fitbit.com/1.2/user/-/sleep/date/{date}.json"
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
 
@@ -46,16 +50,17 @@ class FitbitQueryHandler:
 
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
-    def get_heart_rate_data(self, start_date: str = None, end_date: str = None, time: str = None) -> tuple[str, HTTPStatus] | Response:
+
+    def get_heart_rate_data(self, date: str = None) -> tuple[str, HTTPStatus] | Response:
         """
         Get heart rate data for a specific second from the wearable device API.
+
         :param date: Date in 'YYYY-MM-DD' format.
-        :param time: Time in 'HH:mm:ss' format.
         :return: Heart rate data for the specified second.
         """
         try:
-            # Fetch sleep |data
-            endpoint = f"https://api.fitbit.com/1/user/-/activities/heart/date/{start_date}/1d/1sec/time/{time}/{time}.json"
+            # Endpoint for Heart Rate Intraday by Date data
+            endpoint = f"https://api.fitbit.com/1/user/-/activities/heart/date/{date}/1d/1sec.json"
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
 
@@ -64,44 +69,17 @@ class FitbitQueryHandler:
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
         
-    def get_resting_heart_rate(self, date: str = None, detail_level: str = "1min") -> tuple[dict, HTTPStatus] | Response:
-        """
-        Get resting heart rate data from the wearable device API.
-        :param date: Date in 'YYYY-MM-DD' format.
-        :param detail_level: Level of detail for the data ('1sec' or '1min').
-        :return: Resting heart rate data with the specified detail level.
-        """
-        try:
-            if detail_level not in ["1sec", "1min"]:
-                raise ValueError("Detail level must be '1sec' or '1min'.")
-            
-            endpoint = f"https://api.fitbit.com/1/user/-/activities/heart/date/{date}/1d/{detail_level}.json"
-            response = requests.get(endpoint, headers=self.headers)
-            formatted_response = response.json()
-            
-            resting_heart_rate = formatted_response.get("activities-heart", [{}])[0].get("value", {}).get("restingHeartRate", None)
-            
-            result = {
-                "restingHeartRate": resting_heart_rate,
-                "details": formatted_response.get("activities-heart-intraday", {})
-            }
-
-            return result, HTTPStatus.OK
-
-        except Exception as ve:
-            return jsonify({'error': str(ve)})
-        except Exception as e:
-            return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
-        
-    def get_respiratory_rate(self, date: str) -> tuple[dict, HTTPStatus] | Response:
+    def get_breathing_rate(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
         """
         Get respiratory rate intraday data for a specific date.
         Calculates average respiratory rate and classifies rates by sleep stages.
+
         :param date: Date for the data (format YYYY-MM-DD).
         :return: Respiratory rate data and classification by sleep stages.
         """
         try:
-            endpoint = f"https://api.fitbit.com/1/user/-/respiratoryRate/date/{date}/all.json"
+            # Endpoint for Breathing Rate Intraday by Date data
+            endpoint = f"https://api.fitbit.com/1/user/-/br/date/{date}/all.json"
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
             
@@ -128,16 +106,17 @@ class FitbitQueryHandler:
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
     
-    def get_oxygen_saturation(self, date: str) -> tuple[dict, HTTPStatus] | Response:
+    def get_oxygen_saturation(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
         """
         Get intraday SpO2 (oxygen saturation) data for a specific date.
         Calculates average SpO2 and provides detailed data at 1-second intervals.
+
         :param date: Date for the data (format YYYY-MM-DD).
         :return: SpO2 data with average and detailed measurements.
         """
         try:
             
-            # Endpoint for SpO2 data
+            # Endpoint for SpO2 Intraday by Date data
             endpoint = f"https://api.fitbit.com/1/user/-/spo2/date/{date}/1sec.json"
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
@@ -158,7 +137,7 @@ class FitbitQueryHandler:
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
         
-    def get_activity_steps(self, date: str) -> tuple[dict, HTTPStatus] | Response:
+    def get_activity_steps(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
         """
         GGet intraday activity time series data (steps) for a specific date.
         Provides detailed step counts at 1-minute intervals.
@@ -168,7 +147,7 @@ class FitbitQueryHandler:
         """
         try:
             # Endpoint for activity steps data
-            endpoint = f"https://api.fitbit.com/1/user/-/activities/steps/date/{date}/1min.json"
+            endpoint = f"https://api.fitbit.com/1/user/-/activities/steps/date/{date}/1d/1min.json"
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
             

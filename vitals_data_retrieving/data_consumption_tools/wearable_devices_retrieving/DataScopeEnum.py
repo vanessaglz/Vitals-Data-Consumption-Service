@@ -10,5 +10,5 @@ class DataScopeEnum(Enum):
     heart_rate = 'get_heart_rate_data'
     heart_rate_variability = 'get_heart_rate_variability_data'
     breathing_rate = 'get_breathing_rate_data'
-    spO2 = 'get_spO2_data'
+    spO2 = 'get_oxygen_saturation_data'
     activity = 'get_activity_data'

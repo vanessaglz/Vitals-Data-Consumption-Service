@@ -64,7 +64,7 @@ def get_user_info() -> tuple[str, HTTPStatus]:
 
 
 @vitals_data_retrieving_api.route('/get_vitals_data', methods=['POST'])
-def get_vitals_data() -> tuple[str, HTTPStatus]:
+def get_vitals_data() -> tuple[Response, HTTPStatus]:
     """
     Endpoint to get vitals data from the wearable device
     :return: tuple: Data and HTTP status code
@@ -73,9 +73,8 @@ def get_vitals_data() -> tuple[str, HTTPStatus]:
     """
     data = request.get_json()
     token = data.get('token')
-    start_date = data.get('start_date')
-    end_date = data.get('end_date')
+    date = data.get('date')
     scope = data.get('scope')
     service = VitalsDataRetrievingService(data_retriever)
-    data = service.get_data_from_wearable_device_api(token, start_date, end_date, scope)
+    data = service.get_data_from_wearable_device_api(token, date, scope)
     return data, HTTPStatus.OK

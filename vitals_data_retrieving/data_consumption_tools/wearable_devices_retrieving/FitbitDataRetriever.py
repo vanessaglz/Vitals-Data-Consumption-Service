@@ -9,14 +9,13 @@ from werkzeug import Response
 import os
 
 
-def make_data_query(token: str = None, start_date: str = None, end_date: str = None,
-                    scope: list[str] = None) -> Response:
+def make_data_query(token: str = None, date: str = None, scope: list[str] = None) -> Response:
     """
     Fetches data from Fitbit API for each element in the provided scope.
     Dynamically calls the associated method from FitbitQueryHandler.
 
-    :param start_date: Optional start date for filtering data.
-    :param end_date: Optional end date for filtering data.
+    :param token: Access token for the Fitbit API.
+    :param date: Date in 'YYYY-MM-DD' format.
     :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
     :return: JSON response with combined data or error message.
     """
@@ -35,7 +34,11 @@ def make_data_query(token: str = None, start_date: str = None, end_date: str = N
             # Dynamically call the method on the query_handler
             if hasattr(query_handler, enum_value):
                 method = getattr(query_handler, enum_value)
-                response, status = method(start_date, end_date)
+
+                if enum_value == "get_user_info":
+                    response, status = method()
+                else:
+                    response, status = method(date)
 
                 # Add the response to the combined data
                 if status == HTTPStatus.OK:
@@ -65,25 +68,29 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
     def get_user_info(self, token) -> Response:
         """
         Get user info from the wearable device API
-        :arg: None
+
+        :param token: str: Authorization token
         :return: user info
         """
         user_info = make_data_query(token=token, scope=["user_info"])
         return user_info
 
-    def retrieve_data(self, token: str = None, start_date: str = None, end_date: str = None,
-                      scope: list[str] = None) -> Response:
+    def retrieve_data(self, token: str = None, date: str = None, scope: list[str] = None) -> Response:
         """
         Retrieve data from the wearable device by querying the API
-        :arg: None
-        :return: data
+
+        :param token: str: Authorization token
+        :param date: str: Date in 'YYYY-MM-DD' format
+        :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :return: JSON response with combined data or error message.
         """
-        data = make_data_query(token, start_date, end_date, scope)
+        data = make_data_query(token, date, scope)
         return data
 
     def get_authorization_token(self, authorization_response) -> dict:
         """
         Get the authorization token
+
         :param authorization_response: url
         :return: authorization token
         """
@@ -93,6 +100,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
     def connect_to_api(self) -> str:
         """
         Connect to the API by getting the authorization URL
+
         :arg: None
         :return: str: Authorization URL
         """
@@ -102,6 +110,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
     def get_authorization_url(self) -> str:
         """
         Get the authorization URL
+
         :arg: None
         :return: str: Authorization URL
         """
@@ -112,6 +121,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
     def create_fitbit_session(self) -> OAuth2Session:
         """
         Uses OAuth2Session to create a session with Fitbit
+
         :arg: None
         :return: OAuth2Session: Fitbit session
         """
@@ -120,6 +130,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
     def fetch_token_from_response(self, authorization_response) -> dict:
         """
         Fetch token from authorization response
+
         :param authorization_response: url
         :return: authorization token
         """

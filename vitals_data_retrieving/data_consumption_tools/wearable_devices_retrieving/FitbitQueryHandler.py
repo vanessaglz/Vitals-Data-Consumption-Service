@@ -14,7 +14,7 @@ class FitbitQueryHandler:
         except KeyError:
             raise KeyError('No access token found in session')
 
-    def get_user_info(self) -> tuple[str, HTTPStatus] | Response:
+    def get_user_info(self, date: str = None) -> tuple[str, HTTPStatus] | Response:
         """
         Get user info from the wearable device API
 

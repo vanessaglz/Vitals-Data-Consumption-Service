@@ -68,8 +68,26 @@ class FitbitQueryHandler:
 
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
+
+    def get_heart_rate_variability_data(self, date: str = None) -> tuple[str, HTTPStatus] | Response:
+        """
+        Get heart rate variability data for a specific second from the wearable device API.
+
+        :param date: Date in 'YYYY-MM-DD' format.
+        :return: Heart rate data for the specified second.
+        """
+        try:
+            # Endpoint for Heart Rate Intraday by Date data
+            endpoint = f"https://api.fitbit.com/1/user/-/hrv/date/{date}/all.json"
+            response = requests.get(endpoint, headers=self.headers)
+            formatted_response = response.json()
+
+            return formatted_response, HTTPStatus.OK
+
+        except Exception as e:
+            return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
         
-    def get_breathing_rate(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
+    def get_breathing_rate_data(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
         """
         Get respiratory rate intraday data for a specific date.
         Calculates average respiratory rate and classifies rates by sleep stages.
@@ -106,7 +124,7 @@ class FitbitQueryHandler:
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
     
-    def get_oxygen_saturation(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
+    def get_oxygen_saturation_data(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
         """
         Get intraday SpO2 (oxygen saturation) data for a specific date.
         Calculates average SpO2 and provides detailed data at 1-second intervals.
@@ -137,7 +155,7 @@ class FitbitQueryHandler:
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
         
-    def get_activity_steps(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
+    def get_activity_data(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
         """
         GGet intraday activity time series data (steps) for a specific date.
         Provides detailed step counts at 1-minute intervals.

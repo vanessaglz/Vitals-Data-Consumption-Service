@@ -34,11 +34,7 @@ def make_data_query(token: str = None, date: str = None, scope: list[str] = None
             # Dynamically call the method on the query_handler
             if hasattr(query_handler, enum_value):
                 method = getattr(query_handler, enum_value)
-
-                if enum_value == "get_user_info":
-                    response, status = method()
-                else:
-                    response, status = method(date)
+                response, status = method(date)
 
                 # Add the response to the combined data
                 if status == HTTPStatus.OK:

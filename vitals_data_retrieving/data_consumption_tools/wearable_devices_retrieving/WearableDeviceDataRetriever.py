@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from flask import Response
 
 
 class WearableDeviceDataRetriever(metaclass=ABCMeta):
@@ -16,18 +17,21 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
     def get_user_info(self, token) -> str:
         """
         Get user info from the wearable device API
-        :arg: None
+
+        :param token: str: Authorization token
         :return: str: User info
         """
         pass
 
     @abstractmethod
-    def retrieve_data(
-            self, token: str = None, start_date: str = None, end_date: str = None, scope: list[str] = None) -> str:
+    def retrieve_data(self, token, date, scope) -> Response:
         """
         Retrieve data from the wearable device by querying the API
-        :arg: None
-        :return: str: Data
+
+        :param token: str: Authorization token
+        :param date: str: Date in 'YYYY-MM-DD' format
+        :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :return: JSON response with combined data or error message.
         """
         pass
 
@@ -35,6 +39,7 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
     def get_authorization_token(self, authorization_response) -> str:
         """
         Get the authorization token from the API
+
         :param authorization_response: str: URL
         :return: str: Authorization token
         """

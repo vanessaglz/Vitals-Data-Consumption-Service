@@ -22,7 +22,7 @@ class FitbitQueryHandler:
         :return: user info
         """
         try:
-            # Fetch sleep data
+            # Endpoint for User Info data
             endpoint = f"https://api.fitbit.com/1/user/-/devices.json"
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
@@ -77,7 +77,7 @@ class FitbitQueryHandler:
         :return: Heart rate data for the specified second.
         """
         try:
-            # Endpoint for Heart Rate Intraday by Date data
+            # Endpoint for Heart Rate Variability Intraday by Date data
             endpoint = f"https://api.fitbit.com/1/user/-/hrv/date/{date}/all.json"
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
@@ -117,7 +117,7 @@ class FitbitQueryHandler:
         try:
             
             # Endpoint for SpO2 Intraday by Date data
-            endpoint = f"https://api.fitbit.com/1/user/-/spo2/date/{date}/1sec.json"
+            endpoint = f"https://api.fitbit.com/1/user/-/spo2/date/{date}/all.json"
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
 

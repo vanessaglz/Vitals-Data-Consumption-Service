@@ -87,7 +87,7 @@ class FitbitQueryHandler:
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
         
-    def get_breathing_rate_data(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
+    def get_breathing_rate_data(self, date: str = None) -> tuple[str, HTTPStatus] | Response:
         """
         Get respiratory rate intraday data for a specific date.
         Calculates average respiratory rate and classifies rates by sleep stages.
@@ -101,30 +101,12 @@ class FitbitQueryHandler:
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
             
-            # Process respiratory rate data
-            respiratory_rate_data = formatted_response['respiratoryRate']
-            avg_rate = sum(item['value'] for item in respiratory_rate_data) / len(respiratory_rate_data)
-            
-            # Classify data by sleep stage
-            stages = {"awake": [], "light": [], "deep": [], "rem": []}
-            for item in respiratory_rate_data:
-                stage = item.get('sleepStage', 'unknown')  # Handle missing stages
-                stages[stage].append(item['value'])
-                
-            # Calculate average by stage
-            stage_avg = {stage: sum(values) / len(values) if values else 0 for stage, values in stages.items()}
-            
-            result = {
-                "average_respiratory_rate": avg_rate,
-                "respiratory_rate_by_sleep_stage": stage_avg
-            }
-
-            return result, HTTPStatus.OK
+            return formatted_response, HTTPStatus.OK
 
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
     
-    def get_oxygen_saturation_data(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
+    def get_oxygen_saturation_data(self, date: str = None) -> tuple[str, HTTPStatus] | Response:
         """
         Get intraday SpO2 (oxygen saturation) data for a specific date.
         Calculates average SpO2 and provides detailed data at 1-second intervals.
@@ -138,24 +120,13 @@ class FitbitQueryHandler:
             endpoint = f"https://api.fitbit.com/1/user/-/spo2/date/{date}/1sec.json"
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
-            
-            spo2_data = formatted_response['spo2']
-            avg_spo2 = sum(item['value'] for item in spo2_data) / len(spo2_data)
-            
-            # Extract detailed measurements (1-second intervals)
-            detailed_data = [{"time": item['time'], "value": item['value']} for item in spo2_data]
-            
-            result = {
-                "average_spo2": avg_spo2,
-                "detailed_spo2_data": detailed_data
-            }
 
-            return result, HTTPStatus.OK
+            return formatted_response, HTTPStatus.OK
 
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})
         
-    def get_activity_data(self, date: str = None) -> tuple[dict, HTTPStatus] | Response:
+    def get_activity_data(self, date: str = None) -> tuple[str, HTTPStatus] | Response:
         """
         GGet intraday activity time series data (steps) for a specific date.
         Provides detailed step counts at 1-minute intervals.
@@ -169,18 +140,7 @@ class FitbitQueryHandler:
             response = requests.get(endpoint, headers=self.headers)
             formatted_response = response.json()
             
-            step_data = formatted_response['activities-steps-intraday']['dataset']
-            total_steps = sum(item['value'] for item in step_data)
-            
-            # Extract detailed measurements (1-minute intervals)
-            detailed_data = [{"time": item['time'], "value": item['value']} for item in step_data]
-            
-            result = {
-                "total_steps": total_steps,
-                "detailed_step_data": detailed_data
-            }
-
-            return result, HTTPStatus.OK
+            return formatted_response, HTTPStatus.OK
 
         except Exception as e:
             return jsonify({'error': f"An error occurred during data fetch: {str(e)}"})

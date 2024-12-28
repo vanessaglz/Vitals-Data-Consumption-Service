@@ -44,7 +44,6 @@ def callback() -> Response:
 
     service = VitalsDataRetrievingService(data_retriever)
     session['oauth_token'] = service.callback_action(request.url)
-    print(session['oauth_token'])
     endpoint = user_info_url + session['oauth_token']['access_token']
     return redirect(endpoint)
 

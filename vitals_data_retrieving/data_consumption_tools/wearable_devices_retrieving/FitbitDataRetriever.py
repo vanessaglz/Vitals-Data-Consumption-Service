@@ -121,7 +121,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         :arg: None
         :return: OAuth2Session: Fitbit session
         """
-        return OAuth2Session(self.CLIENT_ID, redirect_uri=self.REDIRECT_URI, scope=self.SCOPE)
+        return OAuth2Session(self.CLIENT_ID, redirect_uri=self.REDIRECT_URI, scope=self.SCOPE, expires_in=31536000)
 
     def fetch_token_from_response(self, authorization_response) -> dict:
         """

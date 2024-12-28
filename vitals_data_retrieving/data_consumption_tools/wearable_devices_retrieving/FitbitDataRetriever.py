@@ -105,14 +105,23 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
 
     def get_authorization_url(self) -> str:
         """
-        Get the authorization URL for a 1-year session
+        Get the authorization URL
 
         :arg: None
         :return: str: Authorization URL
         """
-        fitbit = self.create_fitbit_session(expiration_time=31536000)
+        fitbit = self.create_fitbit_session()
         authorization_url, _ = fitbit.authorization_url(self.AUTHORIZATION_URL)
         return authorization_url
+
+    def create_fitbit_session(self) -> OAuth2Session:
+        """
+        Uses OAuth2Session to create a session with Fitbit
+
+        :arg: None
+        :return: OAuth2Session: Fitbit session
+        """
+        return OAuth2Session(self.CLIENT_ID, redirect_uri=self.REDIRECT_URI, scope=self.SCOPE)
 
     def fetch_token_from_response(self, authorization_response) -> dict:
         """
@@ -125,15 +134,3 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         token = fitbit.fetch_token(self.TOKEN_URL, authorization_response=authorization_response,
                                    client_secret=self.CLIENT_SECRET)
         return token
-
-    def create_fitbit_session(self, expiration_time: int = None) -> OAuth2Session:
-        """
-        Uses OAuth2Session to create a session with Fitbit
-
-        :arg: None
-        :return: OAuth2Session: Fitbit session
-        """
-        if expiration_time:
-            return OAuth2Session(self.CLIENT_ID, redirect_uri=self.REDIRECT_URI, scope=self.SCOPE, expires_in=expiration_time)
-        else:
-            return OAuth2Session(self.CLIENT_ID, redirect_uri=self.REDIRECT_URI, scope=self.SCOPE)

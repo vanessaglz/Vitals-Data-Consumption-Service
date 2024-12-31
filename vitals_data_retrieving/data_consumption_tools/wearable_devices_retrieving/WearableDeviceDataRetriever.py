@@ -14,6 +14,16 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def get_access_token(self, authorization_code) -> str:
+        """
+        Get the access token from the API
+
+        :param authorization_code: str: Authorization code
+        :return: str: Access token
+        """
+        pass
+
+    @abstractmethod
     def get_user_info(self, token) -> str:
         """
         Get user info from the wearable device API
@@ -32,15 +42,5 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
         :param date: str: Date in 'YYYY-MM-DD' format
         :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
         :return: JSON response with combined data or error message.
-        """
-        pass
-
-    @abstractmethod
-    def get_authorization_token(self, authorization_response) -> str:
-        """
-        Get the authorization token from the API
-
-        :param authorization_response: str: URL
-        :return: str: Authorization token
         """
         pass

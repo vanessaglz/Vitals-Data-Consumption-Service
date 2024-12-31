@@ -1,3 +1,8 @@
+import base64
+from typing import Tuple, Dict, Any
+
+import requests
+
 from .WearableDeviceDataRetriever import WearableDeviceDataRetriever
 from .FitbitQueryHandler import FitbitQueryHandler
 from .DataScopeEnum import DataScopeEnum
@@ -59,7 +64,30 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         self.REDIRECT_URI = os.environ.get('REDIRECT_URI')
         self.AUTHORIZATION_URL = os.environ.get('AUTHORIZATION_URL')
         self.TOKEN_URL = os.environ.get('TOKEN_URL')
-        self.SCOPE = ["heartrate", "respiratory_rate", "sleep", "oxygen_saturation", "settings"]
+        self.SCOPE = os.environ.get('SCOPE')
+
+    def connect_to_api(self) -> str:
+        """
+        Connect to the API by getting the authorization URL
+
+        :arg: None
+        :return: str: Authorization URL
+        """
+        authorization_url = self.get_authorization_url()
+        return authorization_url
+
+    def get_access_token(self, authorization_code) -> dict:
+        """
+        Get the authorization token
+
+        :param authorization_code: Authorization code
+        :return: authorization token
+        """
+        authorization_string = self.get_authorization_string()
+        headers, data = self.get_request_params(authorization_string, authorization_code)
+        token_response = self.make_token_request(headers, data)
+        access_token = token_response.get('access_token')
+        return access_token
 
     def get_user_info(self, token) -> Response:
         """
@@ -83,26 +111,6 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         data = make_data_query(token, date, scope)
         return data
 
-    def get_authorization_token(self, authorization_response) -> dict:
-        """
-        Get the authorization token
-
-        :param authorization_response: url
-        :return: authorization token
-        """
-        token = self.fetch_token_from_response(authorization_response)
-        return token
-
-    def connect_to_api(self) -> str:
-        """
-        Connect to the API by getting the authorization URL
-
-        :arg: None
-        :return: str: Authorization URL
-        """
-        authorization_url = self.get_authorization_url()
-        return authorization_url
-
     def get_authorization_url(self) -> str:
         """
         Get the authorization URL
@@ -110,27 +118,56 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         :arg: None
         :return: str: Authorization URL
         """
-        fitbit = self.create_fitbit_session()
-        authorization_url, _ = fitbit.authorization_url(self.AUTHORIZATION_URL)
-        return authorization_url
+        authorization_request = requests.get(self.AUTHORIZATION_URL,
+                                             params={
+                                                 "client_id": self.CLIENT_ID,
+                                                 "response_type": "code",
+                                                 "scope": self.SCOPE}
+                                             )
+        return authorization_request.url
 
-    def create_fitbit_session(self) -> OAuth2Session:
+    def get_authorization_string(self) -> str:
         """
-        Uses OAuth2Session to create a session with Fitbit
+        Get the authorization string
 
         :arg: None
-        :return: OAuth2Session: Fitbit session
+        :return: str: Authorization string
         """
-        return OAuth2Session(self.CLIENT_ID, redirect_uri=self.REDIRECT_URI, scope=self.SCOPE)
+        raw_authorization_string = f"{self.CLIENT_ID}:{self.CLIENT_SECRET}"
+        ascii_authorization_string = raw_authorization_string.encode('ascii')
+        base64_authorization_string = base64.b64encode(ascii_authorization_string)
+        authorization_string = base64_authorization_string.decode('ascii')
+        return authorization_string
 
-    def fetch_token_from_response(self, authorization_response) -> dict:
+    def get_request_params(self, authorization_string, authorization_code) -> tuple[dict, dict]:
         """
-        Fetch token from authorization response
+        Get the request parameters
 
-        :param authorization_response: url
-        :return: authorization token
+        :arg: None
+        :return: tuple: Headers and data
         """
-        fitbit = self.create_fitbit_session()
-        token = fitbit.fetch_token(self.TOKEN_URL, authorization_response=authorization_response,
-                                   client_secret=self.CLIENT_SECRET)
-        return token
+        headers = {
+            "authorization": f"Basic {authorization_string}",
+            "accept": "application/json",
+            "accept-locale": "en_US",
+            "accept-language": "metric"
+        }
+
+        data = {
+            "code": authorization_code,
+            "client_id": self.CLIENT_ID,
+            "grant_type": "authorization_code"
+        }
+
+        return headers, data
+
+    def make_token_request(self, headers, data) -> dict:
+        """
+        Make a token request to Fitbit API
+
+        :param headers: Headers for the request
+        :param data: Data for the request
+        :return: Token request response JSON
+        """
+        token_response = requests.post(self.TOKEN_URL, headers=headers, data=data)
+        return token_response.json()

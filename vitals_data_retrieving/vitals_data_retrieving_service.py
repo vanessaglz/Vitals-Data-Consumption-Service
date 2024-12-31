@@ -46,9 +46,8 @@ class VitalsDataRetrievingService:
         Handle the callback from the wearable device API
 
         :param authorization_response: str: URL
-        :return: str: User ID
+        :return: str: Access token
         """
-        authorization_token = self.device_data_retriever.get_authorization_token(authorization_response)
-        session['oauth_token'] = authorization_token
-        user_id = session.get('oauth_token').get('user_id', None)
-        return authorization_token
+        authorization_code = authorization_response.args.get('code')  # Get the authorization code from the URL
+        access_token = self.device_data_retriever.get_access_token(authorization_code)
+        return access_token

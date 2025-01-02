@@ -24,6 +24,16 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
         pass
 
     @abstractmethod
+    def refresh_access_token(self, refresh_token) -> tuple[str, str]:
+        """
+        Refresh the access token from the API
+
+        :param refresh_token: str: Refresh token
+        :return: tuple: Access token and refresh token
+        """
+        pass
+
+    @abstractmethod
     def get_user_info(self, token) -> str:
         """
         Get user info from the wearable device API

@@ -1,17 +1,14 @@
-import base64
-from typing import Tuple, Dict, Any
-
-import requests
-
 from .WearableDeviceDataRetriever import WearableDeviceDataRetriever
 from .FitbitQueryHandler import FitbitQueryHandler
 from .DataScopeEnum import DataScopeEnum
 from http import HTTPStatus
 from dotenv import load_dotenv
 from flask import jsonify
-from requests_oauthlib import OAuth2Session
 from werkzeug import Response
+from typing import Tuple, Dict, Any
 import os
+import requests
+import base64
 
 
 def make_data_query(token: str = None, date: str = None, scope: list[str] = None) -> Response:
@@ -84,10 +81,24 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         :return: authorization token
         """
         authorization_string = self.get_authorization_string()
-        headers, data = self.get_request_params(authorization_string, authorization_code)
+        headers, data = self.get_request_params_for_token(authorization_string, authorization_code)
         token_response = self.make_token_request(headers, data)
         access_token = token_response.get('access_token')
         return access_token
+
+    def refresh_access_token(self, refresh_token) -> Tuple[str, str]:
+        """
+        Refresh the access token from the API
+
+        :param refresh_token: str: Refresh token
+        :return: tuple: Access token and refresh token
+        """
+        authorization_string = self.get_authorization_string()
+        headers, data = self.get_request_params_for_refresh_token(authorization_string, refresh_token)
+        refresh_token_response = self.make_token_request(headers, data)
+        access_token = refresh_token_response.get('access_token')
+        new_refresh_token = refresh_token_response.get('refresh_token')
+        return access_token, new_refresh_token
 
     def get_user_info(self, token) -> Response:
         """
@@ -139,11 +150,12 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         authorization_string = base64_authorization_string.decode('ascii')
         return authorization_string
 
-    def get_request_params(self, authorization_string, authorization_code) -> tuple[dict, dict]:
+    def get_request_params_for_token(self, authorization_string, authorization_code) -> tuple[dict, dict]:
         """
-        Get the request parameters
+        Get the request parameters for the token request
 
-        :arg: None
+        :param authorization_string: Authorization string
+        :param authorization_code: Authorization code
         :return: tuple: Headers and data
         """
         headers = {
@@ -157,6 +169,29 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
             "code": authorization_code,
             "client_id": self.CLIENT_ID,
             "grant_type": "authorization_code"
+        }
+
+        return headers, data
+
+    def get_request_params_for_refresh_token(self, authorization_string, refresh_token):
+        """
+        Get the request parameters for the refresh token request
+
+        :param authorization_string: Authorization string
+        :param refresh_token: Refresh token
+        :return: tuple: Headers and data
+        """
+        headers = {
+            "authorization": f"Basic {authorization_string}",
+            "accept": "application/json",
+            "accept-locale": "en_US",
+            "accept-language": "metric"
+        }
+
+        data = {
+            "grant_type": "refresh_token",
+            "refresh_token": refresh_token,
+            "client_id": self.CLIENT_ID
         }
 
         return headers, data

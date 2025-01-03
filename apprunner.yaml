@@ -3,11 +3,8 @@ runtime: python311
 build:
   commands:
     - python3.11 -m ensurepip --upgrade
-    - pip3 install Flask
     - pip3 install -r requirements.txt
 run:
-  runtime-version: 3.11
   command: pip3 install Flask
-  pre-run: []
   network:
-    port: 8080
+    port: 5000

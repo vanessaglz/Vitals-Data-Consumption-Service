@@ -5,6 +5,8 @@ build:
     - python3.11 -m ensurepip --upgrade
     - pip3 install -r requirements.txt
 run:
-  command: pip3 install Flask
+  command: 
+    - pip3 install Flask
+    - python3 app.py
   network:
     port: 5000

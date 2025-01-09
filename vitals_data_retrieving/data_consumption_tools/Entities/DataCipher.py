@@ -1,3 +1,5 @@
+import base64
+
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
@@ -9,7 +11,7 @@ class DataCipher:
     def __init__(self):
         if os.path.exists('.env'):
             load_dotenv()
-        self.CIPHER_KEY = os.environ.get('CIPHER_KEY')
+        self.CIPHER_KEY = base64.b64decode(os.environ.get('CIPHER_KEY'))
         self.BLOCK_SIZE = 16
 
     def encrypt(self, plaintext) -> bytes:

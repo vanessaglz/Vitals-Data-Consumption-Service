@@ -1,6 +1,8 @@
 from .WearableDeviceDataRetriever import WearableDeviceDataRetriever
 from .FitbitQueryHandler import FitbitQueryHandler
 from .DataScopeEnum import DataScopeEnum
+from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import UsersDataBase
+from vitals_data_retrieving.data_consumption_tools.Entities.ResponseCode import ResponseCode
 from http import HTTPStatus
 from dotenv import load_dotenv
 from flask import jsonify
@@ -73,18 +75,33 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         authorization_url = self.get_authorization_url()
         return authorization_url
 
-    def get_access_token(self, authorization_code) -> dict:
+    def get_access_token(self, authorization_code) -> HTTPStatus:
         """
         Get the authorization token
 
         :param authorization_code: Authorization code
-        :return: authorization token
+        :return: HTTPStatus: HTTP status code
         """
         authorization_string = self.get_authorization_string()
         headers, data = self.get_request_params_for_token(authorization_string, authorization_code)
         token_response = self.make_token_request(headers, data)
+
+        user_id = token_response.get('user_id')
         access_token = token_response.get('access_token')
-        return access_token
+        refresh_token = token_response.get('refresh_token')
+
+        data_base = UsersDataBase()
+
+        response_code, _ = data_base.read_document(user_id)
+        if response_code == ResponseCode.ERROR_NOT_FOUND:
+            data_base.insert_document(user_id, access_token, refresh_token)
+            status = HTTPStatus.OK
+        elif response_code == ResponseCode.SUCCESS:
+            data_base.update_document(user_id, access_token, refresh_token)
+            status = HTTPStatus.OK
+        else:
+            status = HTTPStatus.INTERNAL_SERVER_ERROR
+        return status
 
     def refresh_access_token(self, refresh_token) -> Tuple[str, str]:
         """

@@ -20,3 +20,5 @@ wheel~=0.37.0
 setuptools~=58.0.4
 future~=0.18.2
 Flask-Cors~=5.0.0
+pymongo~=4.10.1
+cryptography~=44.0.0

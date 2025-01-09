@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 from vitals_data_retrieving.data_consumption_tools.wearable_devices_retrieving.WearableDeviceDataRetriever import \
     WearableDeviceDataRetriever
 from flask import session, Response
@@ -21,6 +23,17 @@ class VitalsDataRetrievingService:
         """
         return self.device_data_retriever.connect_to_api()
 
+    def callback_action(self, authorization_response) -> HTTPStatus:
+        """
+        Handle the callback from the wearable device API
+
+        :param authorization_response: str: URL
+        :return: HTTPStatus: HTTP status code
+        """
+        authorization_code = authorization_response.args.get('code')  # Get the authorization code from the URL
+        status = self.device_data_retriever.get_access_token(authorization_code)
+        return status
+
     def get_user_info_from_api(self, token) -> str:
         """
         Get user info from the wearable device API
@@ -40,14 +53,3 @@ class VitalsDataRetrievingService:
         :return: str: Data
         """
         return self.device_data_retriever.retrieve_data(token, date, scope)
-
-    def callback_action(self, authorization_response) -> str:
-        """
-        Handle the callback from the wearable device API
-
-        :param authorization_response: str: URL
-        :return: str: Access token
-        """
-        authorization_code = authorization_response.args.get('code')  # Get the authorization code from the URL
-        access_token = self.device_data_retriever.get_access_token(authorization_code)
-        return access_token

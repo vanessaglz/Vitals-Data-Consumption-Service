@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from http import HTTPStatus
 from flask import Response
 
 
@@ -14,12 +15,12 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_access_token(self, authorization_code) -> str:
+    def get_access_token(self, authorization_code) -> HTTPStatus:
         """
         Get the access token from the API
 
         :param authorization_code: str: Authorization code
-        :return: str: Access token
+        :return: HTTPStatus: HTTP status code
         """
         pass
 

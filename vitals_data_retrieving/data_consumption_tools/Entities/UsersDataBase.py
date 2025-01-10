@@ -1,25 +1,26 @@
 import base64
-
 from .DataBase import DataBase
 from .ResponseCode import ResponseCode
-from .DataCipher import DataCipher
+from .CryptoUtils import DataCipher
+from .CryptoUtils import hash_data
 import os
 from dotenv import load_dotenv
 import pymongo
 from typing import Tuple
 
 
-def prepare_data(document_id, token, refresh_token) -> Tuple[str, str, str]:
+def prepare_data(document_id, token, refresh_token) -> Tuple[str, str, str, str]:
     """
     Prepare the data for insertion into the database
 
     :param document_id: str: Document ID
     :param token: str: Token
     :param refresh_token: str: Refresh token
-    :return: Tuple[str, str, str]: Encoded ID, encoded token, encoded refresh token
+    :return: Tuple[str, str, str, str]: Hashed ID, encoded ID, encoded token, encoded refresh token
     """
     cipher = DataCipher()
 
+    hashed_id = hash_data(document_id)
     ciphered_id = cipher.encrypt(document_id)
     ciphered_token = cipher.encrypt(token)
     ciphered_refresh_token = cipher.encrypt(refresh_token)
@@ -28,7 +29,7 @@ def prepare_data(document_id, token, refresh_token) -> Tuple[str, str, str]:
     encoded_token = base64.b64encode(ciphered_token).decode('utf-8')
     encoded_refresh_token = base64.b64encode(ciphered_refresh_token).decode('utf-8')
 
-    return encoded_id, encoded_token, encoded_refresh_token
+    return hashed_id, encoded_id, encoded_token, encoded_refresh_token
 
 
 class UsersDataBase(DataBase):
@@ -57,11 +58,12 @@ class UsersDataBase(DataBase):
         :param refresh_token: str: Refresh token
         :return: ResponseCode: Response code
         """
-        encoded_id, encoded_token, encoded_refresh_token = prepare_data(document_id, token, refresh_token)
+        hashed_id, encoded_id, encoded_token, encoded_refresh_token = prepare_data(document_id, token, refresh_token)
 
         try:
             self.collection.insert_one({
-                "_id": encoded_id,
+                "_id": hashed_id,
+                "user_id": encoded_id,
                 "token": encoded_token,
                 "refresh_token": encoded_refresh_token
             })
@@ -79,12 +81,10 @@ class UsersDataBase(DataBase):
         :param document_id: str: Document ID
         :return: Tuple[ResponseCode, dict] | Tuple[ResponseCode, None]: Response code and document contents
         """
-        cipher = DataCipher()
-        ciphered_id = cipher.encrypt(document_id)
-        encoded_id = base64.b64encode(ciphered_id).decode('utf-8')
+        hashed_id = hash_data(document_id)
 
         try:
-            document = self.collection.find_one({"_id": encoded_id})
+            document = self.collection.find_one({"_id": hashed_id})
             if document:
                 return ResponseCode.SUCCESS, document
             else:
@@ -102,12 +102,13 @@ class UsersDataBase(DataBase):
         :param new_refresh_token: str: New refresh token
         :return: ResponseCode: Response code
         """
-        encoded_id, encoded_token, encoded_refresh_token = prepare_data(document_id, new_token, new_refresh_token)
+        hashed_id, encoded_id, encoded_token, encoded_refresh_token = (
+            prepare_data(document_id, new_token, new_refresh_token))
 
         try:
             result = self.collection.update_one(
-                {"_id": encoded_id},
-                {"$set": {"token": encoded_token, "refresh_token": encoded_refresh_token}}
+                {"_id": hashed_id},
+                {"$set": {"user_id": encoded_id, "token": encoded_token, "refresh_token": encoded_refresh_token}}
             )
             if result.matched_count > 0:
                 return ResponseCode.SUCCESS
@@ -124,12 +125,10 @@ class UsersDataBase(DataBase):
         :param document_id: str: Document ID
         :return: ResponseCode: Response code
         """
-        cipher = DataCipher()
-        ciphered_id = cipher.encrypt(document_id)
-        encoded_id = base64.b64encode(ciphered_id).decode('utf-8')
+        hashed_id = hash_data(document_id)
 
         try:
-            result = self.collection.delete_one({"_id": encoded_id})
+            result = self.collection.delete_one({"_id": hashed_id})
             if result.deleted_count > 0:
                 return ResponseCode.SUCCESS
             else:

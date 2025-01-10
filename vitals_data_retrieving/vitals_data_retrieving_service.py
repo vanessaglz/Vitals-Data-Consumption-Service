@@ -1,5 +1,6 @@
 from http import HTTPStatus
 
+from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import UsersDataBase
 from vitals_data_retrieving.data_consumption_tools.wearable_devices_retrieving.WearableDeviceDataRetriever import \
     WearableDeviceDataRetriever
 from flask import session, Response
@@ -53,3 +54,20 @@ class VitalsDataRetrievingService:
         :return: str: Data
         """
         return self.device_data_retriever.retrieve_data(token, date, scope)
+
+    def upload_token(self, user_id, token, refresh_token) -> HTTPStatus:
+        """
+        Upload the token to the database
+
+        :param user_id: str: User ID
+        :param token: str: Token
+        :param refresh_token: str: Refresh token
+        :return: HTTPStatus: HTTP status code
+        """
+        database = UsersDataBase()
+        response = database.insert_document(user_id, token, refresh_token)
+
+        if response == "SUCCESS":
+            return HTTPStatus.OK
+        else:
+            return HTTPStatus.INTERNAL_SERVER_ERROR

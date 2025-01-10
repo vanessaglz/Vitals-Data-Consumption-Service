@@ -85,6 +85,7 @@ class UsersDataBase(DataBase):
 
         try:
             document = self.collection.find_one({"_id": encoded_id})
+            print(document)
             if document:
                 return ResponseCode.SUCCESS, document
             else:

@@ -132,6 +132,8 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         data_base = UsersDataBase()
         response_code, document = data_base.read_document(user_id)
 
+        print(document)
+
         encoded_token = None
 
         if response_code == ResponseCode.ERROR_NOT_FOUND:

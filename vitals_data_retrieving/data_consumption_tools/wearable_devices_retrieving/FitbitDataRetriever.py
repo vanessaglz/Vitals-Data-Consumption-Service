@@ -129,12 +129,8 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         :param user_id: str: User ID
         :return: user info
         """
-        cipher = DataCipher()
-        ciphered_id = cipher.encrypt(user_id)
-        encoded_id = base64.b64encode(ciphered_id).decode('utf-8')
-
         data_base = UsersDataBase()
-        response_code, document = data_base.read_document(encoded_id)
+        response_code, document = data_base.read_document(user_id)
 
         encoded_token = None
 
@@ -143,6 +139,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         elif response_code == ResponseCode.SUCCESS:
             encoded_token = document.get('token')
 
+        cipher = DataCipher()
         decoded_token = base64.b64decode(encoded_token)
         token = cipher.decrypt(decoded_token)
 

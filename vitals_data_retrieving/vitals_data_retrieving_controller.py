@@ -4,9 +4,10 @@ from dotenv import load_dotenv
 from flask import Blueprint, request, redirect, render_template, session
 from typing import Tuple
 from http import HTTPStatus
-
+import pymongo
 from werkzeug import Response
 
+from vitals_data_retrieving.data_consumption_tools.Entities.ResponseCode import ResponseCode
 from vitals_data_retrieving.vitals_data_retrieving_service import VitalsDataRetrievingService
 from vitals_data_retrieving.data_consumption_tools.wearable_devices_retrieving.FitbitDataRetriever import \
     FitbitDataRetriever
@@ -78,7 +79,7 @@ def get_vitals_data() -> tuple[Response, HTTPStatus]:
 
 
 @vitals_data_retrieving_api.route('/upload_token', methods=['POST'])
-def upload_token() -> tuple[str, HTTPStatus]:
+def upload_token() -> tuple[ResponseCode, HTTPStatus]:
     """
     Endpoint to upload the token to the database
     :return: tuple: Data and HTTP status code
@@ -89,10 +90,31 @@ def upload_token() -> tuple[str, HTTPStatus]:
     user_id = data.get('user_id')
     token = data.get('token')
     refresh_token = data.get('refresh_token')
-    service = VitalsDataRetrievingService(data_retriever)
-    status = service.upload_token(user_id, token, refresh_token)
 
-    if status == HTTPStatus.OK:
-        return "Token uploaded successfully", HTTPStatus.OK
-    else:
-        return "Error uploading token", HTTPStatus.INTERNAL_SERVER_ERROR
+    if os.path.exists('.env'):
+        load_dotenv()
+    CONNECTION_STRING = os.environ.get('CONNECTION_STRING')
+    DATABASE_NAME = os.environ.get('DATABASE_NAME')
+    COLLECTION_NAME = os.environ.get('COLLECTION_NAME')
+
+    client = pymongo.MongoClient(CONNECTION_STRING)
+    try:
+        client.server_info()
+    except pymongo.errors.ServerSelectionTimeoutError:
+        raise TimeoutError("Invalid API for MongoDB connection string or timed out when attempting to connect")
+
+    database = client[DATABASE_NAME]
+    collection = database[COLLECTION_NAME]
+
+    try:
+        collection.insert_one({
+            "_id": user_id,
+            "token": token,
+            "refresh_token": refresh_token
+        })
+        return ResponseCode.SUCCESS, HTTPStatus.OK
+    except pymongo.errors.DuplicateKeyError:
+        return ResponseCode.ERROR_DUPLICATE_KEY, HTTPStatus.INTERNAL_SERVER_ERROR
+    except Exception as e:
+        print(f"Error inserting document: {e}")
+        return ResponseCode.ERROR_UNKNOWN, HTTPStatus.INTERNAL_SERVER_ERROR

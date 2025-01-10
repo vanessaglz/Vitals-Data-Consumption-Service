@@ -75,3 +75,20 @@ def get_vitals_data() -> tuple[Response, HTTPStatus]:
     service = VitalsDataRetrievingService(data_retriever)
     data = service.get_data_from_wearable_device_api(token, date, scope)
     return data, HTTPStatus.OK
+
+
+@vitals_data_retrieving_api.route('/upload_token', methods=['POST'])
+def upload_token() -> HTTPStatus:
+    """
+    Endpoint to upload the token to the database
+    :return: tuple: Data and HTTP status code
+
+    Endpoint-> /vitals_data_retrieving/upload_token
+    """
+    data = request.get_json()
+    user_id = data.get('user_id')
+    token = data.get('token')
+    refresh_token = data.get('refresh_token')
+    service = VitalsDataRetrievingService(data_retriever)
+    status = service.upload_token(user_id, token, refresh_token)
+    return status

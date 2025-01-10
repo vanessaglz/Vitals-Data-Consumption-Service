@@ -30,16 +30,19 @@ def connect_to_api() -> str:
 
 
 @vitals_data_retrieving_api.route('/callback')
-def callback() -> HTTPStatus:
+def callback() -> Response:
     """
     Endpoint to handle the callback from the wearable device API
     :return: Response: Redirect to get vitals data endpoint
 
     Endpoint-> /vitals_data_retrieving/callback
     """
+    if os.path.exists('.env'):
+        load_dotenv()
+    user_info_url = os.environ.get('USER_INFO_URL')
     service = VitalsDataRetrievingService(data_retriever)
     status = service.callback_action(request)
-    return status
+    return redirect(user_info_url, code=status)
 
 
 @vitals_data_retrieving_api.route('/get_user_info', methods=['POST'])

@@ -94,12 +94,15 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
 
         response_code, _ = data_base.read_document(user_id)
         if response_code == ResponseCode.ERROR_NOT_FOUND:
+            print("Inserting document")
             data_base.insert_document(user_id, access_token, refresh_token)
             status = HTTPStatus.OK
         elif response_code == ResponseCode.SUCCESS:
+            print("Updating document")
             data_base.update_document(user_id, access_token, refresh_token)
             status = HTTPStatus.OK
         else:
+            print("Error inserting/updating document")
             status = HTTPStatus.INTERNAL_SERVER_ERROR
         return status
 

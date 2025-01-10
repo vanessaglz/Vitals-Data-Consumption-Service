@@ -41,8 +41,8 @@ def callback() -> Response:
         load_dotenv()
     user_info_url = os.environ.get('USER_INFO_URL')
     service = VitalsDataRetrievingService(data_retriever)
-    status = service.callback_action(request)
-    return redirect(user_info_url, code=status)
+    service.callback_action(request)
+    return redirect(user_info_url)
 
 
 @vitals_data_retrieving_api.route('/get_user_info', methods=['POST'])

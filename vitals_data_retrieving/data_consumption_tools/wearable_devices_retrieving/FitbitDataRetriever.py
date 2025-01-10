@@ -12,7 +12,7 @@ import os
 import requests
 import base64
 
-from ..Entities.DataCipher import DataCipher
+from ..Entities.CryptoUtils import DataCipher
 
 
 def make_data_query(token: str = None, date: str = None, scope: list[str] = None) -> Response:
@@ -96,15 +96,12 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
 
         response_code, _ = data_base.read_document(user_id)
         if response_code == ResponseCode.ERROR_NOT_FOUND:
-            print("Inserting document")
             data_base.insert_document(user_id, access_token, refresh_token)
             status = HTTPStatus.OK
         elif response_code == ResponseCode.SUCCESS:
-            print("Updating document")
             data_base.update_document(user_id, access_token, refresh_token)
             status = HTTPStatus.OK
         else:
-            print("Error inserting/updating document")
             status = HTTPStatus.INTERNAL_SERVER_ERROR
         return status
 

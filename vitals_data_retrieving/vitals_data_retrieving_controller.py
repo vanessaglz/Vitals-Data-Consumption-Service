@@ -79,7 +79,7 @@ def get_vitals_data() -> tuple[Response, HTTPStatus]:
 
 
 @vitals_data_retrieving_api.route('/upload_token', methods=['POST'])
-def upload_token() -> tuple[ResponseCode, HTTPStatus]:
+def upload_token() -> tuple[str, HTTPStatus]:
     """
     Endpoint to upload the token to the database
     :return: tuple: Data and HTTP status code
@@ -112,9 +112,9 @@ def upload_token() -> tuple[ResponseCode, HTTPStatus]:
             "token": token,
             "refresh_token": refresh_token
         })
-        return ResponseCode.SUCCESS, HTTPStatus.OK
+        return "Success", HTTPStatus.OK
     except pymongo.errors.DuplicateKeyError:
-        return ResponseCode.ERROR_DUPLICATE_KEY, HTTPStatus.INTERNAL_SERVER_ERROR
+        return "Duplicate key", HTTPStatus.BAD_REQUEST
     except Exception as e:
         print(f"Error inserting document: {e}")
-        return ResponseCode.ERROR_UNKNOWN, HTTPStatus.INTERNAL_SERVER_ERROR
+        return "Error", HTTPStatus.INTERNAL_SERVER_ERROR

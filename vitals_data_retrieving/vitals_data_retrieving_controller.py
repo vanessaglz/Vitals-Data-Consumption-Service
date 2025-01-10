@@ -55,9 +55,9 @@ def get_user_info() -> tuple[str, HTTPStatus]:
     Endpoint-> /vitals_data_retrieving/get_user_info
     """
     data = request.get_json()
-    token = data.get('token')
+    user_id = data.get('user_id')
     service = VitalsDataRetrievingService(data_retriever)
-    user_info = service.get_user_info_from_api(token)
+    user_info = service.get_user_info_from_api(user_id)
     return user_info, HTTPStatus.OK
 
 

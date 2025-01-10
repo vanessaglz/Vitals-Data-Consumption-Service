@@ -12,6 +12,8 @@ import os
 import requests
 import base64
 
+from ..Entities.DataCipher import DataCipher
+
 
 def make_data_query(token: str = None, date: str = None, scope: list[str] = None) -> Response:
     """
@@ -120,13 +122,30 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         new_refresh_token = refresh_token_response.get('refresh_token')
         return access_token, new_refresh_token
 
-    def get_user_info(self, token) -> Response:
+    def get_user_info(self, user_id) -> Response:
         """
         Get user info from the wearable device API
 
-        :param token: str: Authorization token
+        :param user_id: str: User ID
         :return: user info
         """
+        cipher = DataCipher()
+        ciphered_id = cipher.encrypt(user_id)
+        encoded_id = base64.b64encode(ciphered_id).decode('utf-8')
+
+        data_base = UsersDataBase()
+        response_code, document = data_base.read_document(encoded_id)
+
+        encoded_token = None
+
+        if response_code == ResponseCode.ERROR_NOT_FOUND:
+            return jsonify({'error': 'User not found'})
+        elif response_code == ResponseCode.SUCCESS:
+            encoded_token = document.get('token')
+
+        decoded_token = base64.b64decode(encoded_token)
+        token = cipher.decrypt(decoded_token)
+
         user_info = make_data_query(token=token, scope=["user_info"])
         return user_info
 

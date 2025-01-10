@@ -35,13 +35,14 @@ class VitalsDataRetrievingService:
         status = self.device_data_retriever.get_access_token(authorization_code)
         return status
 
-    def get_user_info_from_api(self, token) -> str:
+    def get_user_info_from_api(self, user_id) -> str:
         """
         Get user info from the wearable device API
 
+        :param user_id: str: User ID
         :return: str: User info
         """
-        return self.device_data_retriever.get_user_info(token)
+        return self.device_data_retriever.get_user_info(user_id)
 
     def get_data_from_wearable_device_api(
             self, token: str = None, date: str = None, scope: list[str] = None) -> Response:

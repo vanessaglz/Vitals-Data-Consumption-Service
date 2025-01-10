@@ -78,7 +78,7 @@ def get_vitals_data() -> tuple[Response, HTTPStatus]:
 
 
 @vitals_data_retrieving_api.route('/upload_token', methods=['POST'])
-def upload_token() -> HTTPStatus:
+def upload_token() -> tuple[str, HTTPStatus]:
     """
     Endpoint to upload the token to the database
     :return: tuple: Data and HTTP status code
@@ -91,4 +91,8 @@ def upload_token() -> HTTPStatus:
     refresh_token = data.get('refresh_token')
     service = VitalsDataRetrievingService(data_retriever)
     status = service.upload_token(user_id, token, refresh_token)
-    return status
+
+    if status == HTTPStatus.OK:
+        return "Token uploaded successfully", HTTPStatus.OK
+    else:
+        return "Error uploading token", HTTPStatus.INTERNAL_SERVER_ERROR

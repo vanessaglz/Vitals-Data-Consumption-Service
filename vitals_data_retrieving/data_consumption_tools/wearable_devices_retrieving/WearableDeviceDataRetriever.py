@@ -35,11 +35,11 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_user_info(self, token) -> str:
+    def get_user_info(self, user_id) -> str:
         """
         Get user info from the wearable device API
 
-        :param token: str: Authorization token
+        :param user_id: str: User ID
         :return: str: User info
         """
         pass

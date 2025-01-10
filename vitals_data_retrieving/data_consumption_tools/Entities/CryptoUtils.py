@@ -1,10 +1,22 @@
 import base64
-
+import hashlib
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import padding
 from cryptography.hazmat.backends import default_backend
 from dotenv import load_dotenv
 import os
+
+
+def hash_data(data) -> str:
+    """
+    Hash a given data string using SHA-256
+
+    :param data: str: Data to hash
+    :return: str: Hashed data
+    """
+    hasher = hashlib.sha256()
+    hasher.update(data.encode())
+    return hasher.hexdigest()
 
 
 class DataCipher:

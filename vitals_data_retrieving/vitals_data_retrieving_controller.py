@@ -56,6 +56,7 @@ def get_user_info() -> tuple[str, HTTPStatus]:
     """
     data = request.get_json()
     user_id = data.get('user_id')
+    print("User ID: ", user_id)
     service = VitalsDataRetrievingService(data_retriever)
     user_info = service.get_user_info_from_api(user_id)
     return user_info, HTTPStatus.OK

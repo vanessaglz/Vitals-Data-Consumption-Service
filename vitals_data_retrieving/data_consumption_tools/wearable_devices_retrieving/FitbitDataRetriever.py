@@ -1,18 +1,17 @@
 from .WearableDeviceDataRetriever import WearableDeviceDataRetriever
 from .FitbitQueryHandler import FitbitQueryHandler
 from .DataScopeEnum import DataScopeEnum
+from ..Entities.CryptoUtils import DataCipher
 from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import UsersDataBase
+from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import decode_data
 from vitals_data_retrieving.data_consumption_tools.Entities.ResponseCode import ResponseCode
 from http import HTTPStatus
 from dotenv import load_dotenv
 from flask import jsonify
 from werkzeug import Response
-from typing import Tuple, Dict, Any
 import os
 import requests
 import base64
-
-from ..Entities.CryptoUtils import DataCipher
 
 
 def make_data_query(token: str = None, date: str = None, scope: list[str] = None) -> Response:
@@ -105,19 +104,37 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
             status = HTTPStatus.INTERNAL_SERVER_ERROR
         return status
 
-    def refresh_access_token(self, refresh_token) -> Tuple[str, str]:
+    def refresh_access_token(self, user_id) -> tuple[Response, HTTPStatus]:
         """
         Refresh the access token from the API
 
-        :param refresh_token: str: Refresh token
-        :return: tuple: Access token and refresh token
+        :param user_id: str: User ID
+        :return: tuple: Operation status and HTTP status code
         """
+        data_base = UsersDataBase()
+        response_code, document = data_base.read_document(user_id)
+
+        if response_code == ResponseCode.ERROR_NOT_FOUND:
+            return jsonify({'error': 'User not found'}), HTTPStatus.NOT_FOUND
+        elif response_code == ResponseCode.ERROR_UNKNOWN:
+            return jsonify({'error': 'Unknown error occurred'}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+        decoded_document = decode_data(document)
+        refresh_token = decoded_document["refresh_token"]
+
         authorization_string = self.get_authorization_string()
         headers, data = self.get_request_params_for_refresh_token(authorization_string, refresh_token)
         refresh_token_response = self.make_token_request(headers, data)
-        access_token = refresh_token_response.get('access_token')
+
+        new_access_token = refresh_token_response.get('access_token')
         new_refresh_token = refresh_token_response.get('refresh_token')
-        return access_token, new_refresh_token
+
+        status = data_base.update_document(user_id, new_access_token, new_refresh_token)
+
+        if status == ResponseCode.SUCCESS:
+            return jsonify({'status': 'Token refreshed successfully'}), HTTPStatus.OK
+        else:
+            return jsonify({'error': 'Failed to refresh token'}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     def get_user_info(self, user_id) -> Response:
         """
@@ -129,17 +146,11 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         data_base = UsersDataBase()
         response_code, document = data_base.read_document(user_id)
 
-        encoded_token = None
-
         if response_code == ResponseCode.ERROR_NOT_FOUND:
             return jsonify({'error': 'User not found'})
-        elif response_code == ResponseCode.SUCCESS:
-            encoded_token = document.get('token')
 
-        cipher = DataCipher()
-        decoded_token = base64.b64decode(encoded_token)
-        token = cipher.decrypt(decoded_token)
-
+        decoded_document = decode_data(document)
+        token = decoded_document["token"]
         user_info = make_data_query(token=token, scope=["user_info"])
         return user_info
 
@@ -206,7 +217,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
 
         return headers, data
 
-    def get_request_params_for_refresh_token(self, authorization_string, refresh_token):
+    def get_request_params_for_refresh_token(self, authorization_string, refresh_token) -> tuple[dict, dict]:
         """
         Get the request parameters for the refresh token request
 

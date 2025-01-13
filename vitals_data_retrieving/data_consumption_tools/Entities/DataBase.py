@@ -1,6 +1,5 @@
 from .ResponseCode import ResponseCode
 from abc import ABCMeta, abstractmethod
-from typing import Tuple
 
 
 class DataBase(metaclass=ABCMeta):
@@ -18,12 +17,12 @@ class DataBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def read_document(self, document_id) -> Tuple[ResponseCode, dict] | Tuple[ResponseCode, None]:
+    def read_document(self, document_id) -> tuple[ResponseCode, dict] | tuple[ResponseCode, None]:
         """
         Return the contents of the document containing document_id
 
         :param document_id: str: Document ID
-        :return: Tuple[ResponseCode, dict] | Tuple[ResponseCode, None]: Response code and document contents
+        :return: tuple[ResponseCode, dict] | tuple[ResponseCode, None]: Response code and document contents
         """
         pass
 
@@ -50,10 +49,10 @@ class DataBase(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def get_all_documents(self) -> Tuple[ResponseCode, list[dict]]:
+    def get_all_documents(self) -> tuple[ResponseCode, list[dict]]:
         """
         Retrieve and return all documents from the collection
 
-        :return: Tuple[ResponseCode, list[dict]]: Response code and list of documents
+        :return: tuple[ResponseCode, list[dict]]: Response code and list of documents
         """
         pass

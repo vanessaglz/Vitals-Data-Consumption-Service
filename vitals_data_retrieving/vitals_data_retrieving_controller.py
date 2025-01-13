@@ -1,16 +1,12 @@
-import os
-
-from dotenv import load_dotenv
-from flask import Blueprint, request, redirect, render_template, session
-from typing import Tuple
-from http import HTTPStatus
-import pymongo
-from werkzeug import Response
-
-from vitals_data_retrieving.data_consumption_tools.Entities.ResponseCode import ResponseCode
 from vitals_data_retrieving.vitals_data_retrieving_service import VitalsDataRetrievingService
 from vitals_data_retrieving.data_consumption_tools.wearable_devices_retrieving.FitbitDataRetriever import \
     FitbitDataRetriever
+from dotenv import load_dotenv
+from flask import Blueprint, request, redirect
+from http import HTTPStatus
+from werkzeug import Response
+import os
+
 
 vitals_data_retrieving_api = Blueprint('vitals_data_retrieving_api', __name__)
 
@@ -46,8 +42,23 @@ def callback() -> Response:
     return redirect(user_info_url)
 
 
+@vitals_data_retrieving_api.route('/refresh_token', methods=['POST'])
+def refresh_token() -> tuple[Response, HTTPStatus]:
+    """
+    Endpoint to refresh the access token from the wearable device API
+    :return: tuple: Access token and refresh token
+
+    Endpoint-> /vitals_data_retrieving/refresh_token
+    """
+    data = request.get_json()
+    user_id = data.get('user_id')
+    service = VitalsDataRetrievingService(data_retriever)
+    response, status = service.refresh_access_token(user_id)
+    return response, status
+
+
 @vitals_data_retrieving_api.route('/get_user_info', methods=['POST'])
-def get_user_info() -> tuple[str, HTTPStatus]:
+def get_user_info() -> tuple[Response, HTTPStatus]:
     """
     Endpoint to get user info from the wearable device
     :return: tuple: User info and HTTP status code

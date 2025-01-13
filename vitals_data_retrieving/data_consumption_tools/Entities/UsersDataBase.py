@@ -1,22 +1,21 @@
-import base64
 from .DataBase import DataBase
 from .ResponseCode import ResponseCode
 from .CryptoUtils import DataCipher
 from .CryptoUtils import hash_data
-import os
 from dotenv import load_dotenv
+import os
 import pymongo
-from typing import Tuple
+import base64
 
 
-def prepare_data(document_id, token, refresh_token) -> Tuple[str, str, str, str]:
+def prepare_data(document_id, token, refresh_token) -> tuple[str, str, str, str]:
     """
     Prepare the data for insertion into the database
 
     :param document_id: str: Document ID
     :param token: str: Token
     :param refresh_token: str: Refresh token
-    :return: Tuple[str, str, str, str]: Hashed ID, encoded ID, encoded token, encoded refresh token
+    :return: tuple[str, str, str, str]: Hashed ID, encoded ID, encoded token, encoded refresh token
     """
     cipher = DataCipher()
 
@@ -32,22 +31,48 @@ def prepare_data(document_id, token, refresh_token) -> Tuple[str, str, str, str]
     return hashed_id, encoded_id, encoded_token, encoded_refresh_token
 
 
+def decode_data(document) -> dict:
+    """
+    Decode the data from the database
+
+    :param document: dict: Document
+    :return: dict: Decoded document
+    """
+    cipher = DataCipher()
+
+    encoded_id = base64.b64decode(document.get('user_id'))
+    encoded_token = base64.b64decode(document.get('token'))
+    encoded_refresh_token = base64.b64decode(document.get('refresh_token'))
+
+    user_id = cipher.decrypt(encoded_id)
+    token = cipher.decrypt(encoded_token)
+    refresh_token = cipher.decrypt(encoded_refresh_token)
+
+    decoded_document = {
+        "user_id": user_id,
+        "token": token,
+        "refresh_token": refresh_token
+    }
+
+    return decoded_document
+
+
 class UsersDataBase(DataBase):
     def __init__(self):
         if os.path.exists('.env'):
             load_dotenv()
-        CONNECTION_STRING = os.environ.get('CONNECTION_STRING')
-        DATABASE_NAME = os.environ.get('DATABASE_NAME')
-        COLLECTION_NAME = os.environ.get('COLLECTION_NAME')
+        connection_string = os.environ.get('CONNECTION_STRING')
+        database_name = os.environ.get('DATABASE_NAME')
+        collection_name = os.environ.get('COLLECTION_NAME')
 
-        client = pymongo.MongoClient(CONNECTION_STRING)
+        client = pymongo.MongoClient(connection_string)
         try:
             client.server_info()
         except pymongo.errors.ServerSelectionTimeoutError:
             raise TimeoutError("Invalid API for MongoDB connection string or timed out when attempting to connect")
 
-        database = client[DATABASE_NAME]
-        self.collection = database[COLLECTION_NAME]
+        database = client[database_name]
+        self.collection = database[collection_name]
 
     def insert_document(self, document_id, token, refresh_token) -> ResponseCode:
         """
@@ -74,12 +99,12 @@ class UsersDataBase(DataBase):
             print(f"Error inserting document: {e}")
             return ResponseCode.ERROR_UNKNOWN
 
-    def read_document(self, document_id) -> Tuple[ResponseCode, dict] | Tuple[ResponseCode, None]:
+    def read_document(self, document_id) -> tuple[ResponseCode, dict] | tuple[ResponseCode, None]:
         """
         Return the contents of the document containing document_id
 
         :param document_id: str: Document ID
-        :return: Tuple[ResponseCode, dict] | Tuple[ResponseCode, None]: Response code and document contents
+        :return: tuple[ResponseCode, dict] | tuple[ResponseCode, None]: Response code and document contents
         """
         hashed_id = hash_data(document_id)
 
@@ -137,11 +162,11 @@ class UsersDataBase(DataBase):
             print(f"Error deleting document: {e}")
             return ResponseCode.ERROR_UNKNOWN
 
-    def get_all_documents(self) -> Tuple[ResponseCode, list[dict]]:
+    def get_all_documents(self) -> tuple[ResponseCode, list[dict]]:
         """
         Retrieve and return all documents from the collection
 
-        :return: Tuple[ResponseCode, list[dict]]: Response code and list of documents
+        :return: tuple[ResponseCode, list[dict]]: Response code and list of documents
         """
         try:
             documents = list(self.collection.find({}))

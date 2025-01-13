@@ -1,9 +1,7 @@
-from http import HTTPStatus
-
-from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import UsersDataBase
 from vitals_data_retrieving.data_consumption_tools.wearable_devices_retrieving.WearableDeviceDataRetriever import \
     WearableDeviceDataRetriever
-from flask import session, Response
+from flask import Response
+from http import HTTPStatus
 
 
 class VitalsDataRetrievingService:
@@ -35,7 +33,16 @@ class VitalsDataRetrievingService:
         status = self.device_data_retriever.get_access_token(authorization_code)
         return status
 
-    def get_user_info_from_api(self, user_id) -> str:
+    def refresh_access_token(self, user_id) -> tuple[Response, HTTPStatus]:
+        """
+        Refresh the access token from the wearable device API
+
+        :param user_id: str: User ID
+        :return: tuple: Access token and refresh token
+        """
+        return self.device_data_retriever.refresh_access_token(user_id)
+
+    def get_user_info_from_api(self, user_id) -> Response:
         """
         Get user info from the wearable device API
 

@@ -35,12 +35,20 @@ class VitalsDataRetrievingService:
 
     def refresh_access_token(self, user_id) -> tuple[Response, HTTPStatus]:
         """
-        Refresh the access token from the wearable device API
+        Refresh the access token from the wearable device API in the database
 
         :param user_id: str: User ID
         :return: tuple: Access token and refresh token
         """
         return self.device_data_retriever.refresh_access_token(user_id)
+
+    def update_all_tokens(self) -> tuple[Response, HTTPStatus]:
+        """
+        Update all access tokens from the wearable device API in the database
+
+        :return: tuple: Operation status and HTTP status code
+        """
+        return self.device_data_retriever.update_all_tokens()
 
     def get_user_info_from_api(self, user_id) -> Response:
         """

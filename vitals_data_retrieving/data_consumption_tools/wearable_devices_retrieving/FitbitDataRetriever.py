@@ -127,6 +127,40 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         else:
             return jsonify({'error': 'Failed to refresh token'}), HTTPStatus.INTERNAL_SERVER_ERROR
 
+    def update_all_tokens(self) -> tuple[Response, HTTPStatus]:
+        """
+        Update all access tokens from the wearable device API in the database
+
+        :arg: None
+        :return: tuple: Operation status and HTTP status code
+        """
+        data_base = UsersDataBase()
+        response_code, documents = data_base.get_all_documents()
+
+        if response_code == ResponseCode.ERROR_NOT_FOUND:
+            return jsonify({'error': 'No users found'}), HTTPStatus.NOT_FOUND
+        elif response_code == ResponseCode.ERROR_UNKNOWN:
+            return jsonify({'error': 'Unknown error occurred'}), HTTPStatus.INTERNAL_SERVER_ERROR
+
+        total_documents = len(documents)
+
+        updated_tokens = 0
+
+        for document in documents:
+            decoded_document = decode_data(document)
+            user_id = decoded_document["user_id"]
+            _, status = self.refresh_access_token(user_id)
+
+            if status == HTTPStatus.OK:
+                updated_tokens += 1
+
+        if updated_tokens == total_documents:
+            return jsonify({'status': 'All tokens updated successfully'}), HTTPStatus.OK
+        elif updated_tokens == 0:
+            return jsonify({'error': 'Failed to update any tokens'}), HTTPStatus.INTERNAL_SERVER_ERROR
+        else:
+            return jsonify({'error': 'Some tokens failed to update'}), HTTPStatus.INTERNAL_SERVER_ERROR
+
     def get_user_info(self, user_id) -> Response:
         """
         Get user info from the wearable device API

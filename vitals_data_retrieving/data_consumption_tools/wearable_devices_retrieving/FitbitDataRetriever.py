@@ -154,17 +154,26 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         user_info = make_data_query(token=token, scope=["user_info"])
         return user_info
 
-    def retrieve_data(self, token: str = None, date: str = None, scope: list[str] = None) -> Response:
+    def retrieve_data(
+            self, user_id: str = None, date: str = None, scope: list[str] = None) -> tuple[Response, HTTPStatus]:
         """
         Retrieve data from the wearable device by querying the API
 
-        :param token: str: Authorization token
+        :param user_id: str: User ID
         :param date: str: Date in 'YYYY-MM-DD' format
         :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
-        :return: JSON response with combined data or error message.
+        :return: tuple: Data and HTTP status code
         """
+        data_base = UsersDataBase()
+        response_code, document = data_base.read_document(user_id)
+
+        if response_code == ResponseCode.ERROR_NOT_FOUND:
+            return jsonify({'error': 'User not found'}), HTTPStatus.NOT_FOUND
+
+        decoded_document = decode_data(document)
+        token = decoded_document["token"]
         data = make_data_query(token, date, scope)
-        return data
+        return data, HTTPStatus.OK
 
     def get_authorization_url(self) -> str:
         """

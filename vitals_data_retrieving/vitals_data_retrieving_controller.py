@@ -81,9 +81,9 @@ def get_vitals_data() -> tuple[Response, HTTPStatus]:
     Endpoint-> /vitals_data_retrieving/get_vitals_data
     """
     data = request.get_json()
-    token = data.get('token')
+    user_id = data.get('user_id')
     date = data.get('date')
     scope = data.get('scope')
     service = VitalsDataRetrievingService(data_retriever)
-    data = service.get_data_from_wearable_device_api(token, date, scope)
-    return data, HTTPStatus.OK
+    data, status = service.get_data_from_wearable_device_api(user_id, date, scope)
+    return data, status

@@ -1,5 +1,4 @@
 from __future__ import annotations
-
 from http import HTTPStatus
 from flask import jsonify, Response
 import requests
@@ -12,6 +11,9 @@ class FitbitQueryHandler:
                             'Accept-Language': 'en_US'}
         except KeyError:
             raise KeyError('No access token found in session')
+
+    def update_token(self, token: str):
+        self.headers['Authorization'] = f'Bearer {token}'
 
     def get_user_info(self, date: str = None) -> tuple[str, HTTPStatus] | Response:
         """

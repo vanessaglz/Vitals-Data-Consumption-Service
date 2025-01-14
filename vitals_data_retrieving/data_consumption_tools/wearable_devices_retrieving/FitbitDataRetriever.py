@@ -1,7 +1,6 @@
 from .WearableDeviceDataRetriever import WearableDeviceDataRetriever
 from .FitbitQueryHandler import FitbitQueryHandler
 from .DataScopeEnum import DataScopeEnum
-from ..Entities.CryptoUtils import DataCipher
 from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import UsersDataBase
 from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import decode_data
 from vitals_data_retrieving.data_consumption_tools.Entities.ResponseCode import ResponseCode
@@ -14,45 +13,37 @@ import requests
 import base64
 
 
-def make_data_query(token: str = None, date: str = None, scope: list[str] = None) -> Response:
+def get_token_from_database(user_id) -> tuple[str, ResponseCode]:
     """
-    Fetches data from Fitbit API for each element in the provided scope.
-    Dynamically calls the associated method from FitbitQueryHandler.
+    Get the token from the database
 
-    :param token: Access token for the Fitbit API.
-    :param date: Date in 'YYYY-MM-DD' format.
-    :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
-    :return: JSON response with combined data or error message.
+    :param user_id: str: User ID
+    :return: tuple[str, ResponseCode]: Token and response code
     """
-    try:
-        # Initialize the FitbitQueryHandler
-        query_handler = FitbitQueryHandler(token)
+    data_base = UsersDataBase()
+    response_code, document = data_base.read_document(user_id)
 
-        # To store combined responses
-        combined_data = {}
+    if response_code == ResponseCode.ERROR_NOT_FOUND:
+        return "", response_code
 
-        # Loop through the scope and process each element
-        for element in scope:
-            # Get the corresponding enum value for the scope
-            enum_value = DataScopeEnum[element].value
+    decoded_document = decode_data(document)
+    return decoded_document["token"], response_code
 
-            # Dynamically call the method on the query_handler
-            if hasattr(query_handler, enum_value):
-                method = getattr(query_handler, enum_value)
-                response, status = method(date)
 
-                # Add the response to the combined data
-                if status == HTTPStatus.OK:
-                    combined_data[element] = response
-                else:
-                    combined_data[element] = {"error": f"Failed to fetch {element} data"}
-            else:
-                combined_data[element] = {"error": f"Method {enum_value} not found in FitbitQueryHandler"}
+def get_query_error_message(operation, status_code) -> dict:
+    """
+    Get the error message for a query
 
-        return jsonify(combined_data)
-
-    except Exception as e:
-        return jsonify({'error': f"An error occurred: {str(e)}"})
+    :param operation: str: Operation
+    :param status_code: HTTPStatus: HTTP status code
+    :return: Response: Error response
+    """
+    if status_code == HTTPStatus.UNAUTHORIZED:
+        return {'error': f'Unauthorized access. User token has no access to {operation} data'}
+    elif status_code == HTTPStatus.BAD_REQUEST:
+        return {'error': f'Bad request. Failed to fetch {operation} data'}
+    else:
+        return {'error': f'An error occurred while fetching {operation} data'}
 
 
 class FitbitDataRetriever(WearableDeviceDataRetriever):
@@ -143,15 +134,12 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         :param user_id: str: User ID
         :return: user info
         """
-        data_base = UsersDataBase()
-        response_code, document = data_base.read_document(user_id)
+        token, response_code = get_token_from_database(user_id)
 
         if response_code == ResponseCode.ERROR_NOT_FOUND:
             return jsonify({'error': 'User not found'})
 
-        decoded_document = decode_data(document)
-        token = decoded_document["token"]
-        user_info = make_data_query(token=token, scope=["user_info"])
+        user_info = self.make_data_query(user_id=user_id, token=token, scope=["user_info"])
         return user_info
 
     def retrieve_data(
@@ -164,16 +152,61 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
         :return: tuple: Data and HTTP status code
         """
-        data_base = UsersDataBase()
-        response_code, document = data_base.read_document(user_id)
+        token, response_code = get_token_from_database(user_id)
 
         if response_code == ResponseCode.ERROR_NOT_FOUND:
             return jsonify({'error': 'User not found'}), HTTPStatus.NOT_FOUND
 
-        decoded_document = decode_data(document)
-        token = decoded_document["token"]
-        data = make_data_query(token, date, scope)
+        data = self.make_data_query(user_id, token, date, scope)
         return data, HTTPStatus.OK
+
+    def make_data_query(self, user_id, token: str = None, date: str = None, scope: list[str] = None) -> Response:
+        """
+        Fetches data from Fitbit API for each element in the provided scope.
+        Dynamically calls the associated method from FitbitQueryHandler.
+
+        :param user_id: str: User ID.
+        :param token: Access token for the Fitbit API.
+        :param date: Date in 'YYYY-MM-DD' format.
+        :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :return: JSON response with combined data or error message.
+        """
+        try:
+            query_handler = FitbitQueryHandler(token)
+
+            combined_data = {}
+
+            for element in scope:
+                operation = DataScopeEnum[element].value
+
+                # Dynamically call the method on the query_handler
+                if hasattr(query_handler, operation):
+                    method = getattr(query_handler, operation)
+
+                    status = None
+
+                    for _ in range(3):
+                        response, status = method(date)
+
+                        if status == HTTPStatus.OK:
+                            combined_data[element] = response
+                            break
+                        elif status == HTTPStatus.UNAUTHORIZED:
+                            self.refresh_access_token(user_id)
+                            new_token, _ = get_token_from_database(user_id)
+                            query_handler.update_token(new_token)
+                        else:
+                            break
+
+                    if status != HTTPStatus.OK:
+                        combined_data[element] = get_query_error_message(operation, status)
+                else:
+                    combined_data[element] = {"error": f"Operation {operation} not found in FitbitQueryHandler"}
+
+            return jsonify(combined_data)
+
+        except Exception as e:
+            return jsonify({'error': f"An error occurred: {str(e)}"})
 
     def get_authorization_url(self) -> str:
         """

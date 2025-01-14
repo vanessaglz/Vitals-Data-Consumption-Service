@@ -9,6 +9,7 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
     def connect_to_api(self) -> str:
         """
         Connect to the API of the wearable device
+
         :arg: None
         :return: str: Authorization string
         """
@@ -31,6 +32,16 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
 
         :param user_id: str: User ID
         :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
+        """
+        pass
+
+    @abstractmethod
+    def update_all_tokens(self) -> tuple[Response, HTTPStatus]:
+        """
+        Update all access tokens from the wearable device API in the database
+
+        :arg: None
+        :return: tuple: Operation status and HTTP status code
         """
         pass
 

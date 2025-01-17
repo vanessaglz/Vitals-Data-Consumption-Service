@@ -46,7 +46,7 @@ def callback() -> Response:
 def refresh_token() -> tuple[Response, HTTPStatus]:
     """
     Endpoint to refresh the access token from the wearable device API in the database
-    :return: tuple: Access token and refresh token
+    :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
 
     Endpoint-> /vitals_data_retrieving/refresh_token
     """
@@ -61,7 +61,7 @@ def refresh_token() -> tuple[Response, HTTPStatus]:
 def update_all_tokens() -> tuple[Response, HTTPStatus]:
     """
     Endpoint to update all access tokens from the wearable device API in the database
-    :return: tuple: Operation status and HTTP status code
+    :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
 
     Endpoint-> /vitals_data_retrieving/update_all_tokens
     """
@@ -74,22 +74,22 @@ def update_all_tokens() -> tuple[Response, HTTPStatus]:
 def get_user_info() -> tuple[Response, HTTPStatus]:
     """
     Endpoint to get user info from the wearable device
-    :return: tuple: User info and HTTP status code
+    :return: tuple[Response, HTTPStatus]: User info and HTTP status code
 
     Endpoint-> /vitals_data_retrieving/get_user_info
     """
     data = request.get_json()
     user_id = data.get('user_id')
     service = VitalsDataRetrievingService(data_retriever)
-    user_info = service.get_user_info_from_api(user_id)
-    return user_info, HTTPStatus.OK
+    data, status = service.get_user_info_from_api(user_id)
+    return data, status
 
 
 @vitals_data_retrieving_api.route('/get_vitals_data', methods=['POST'])
 def get_vitals_data() -> tuple[Response, HTTPStatus]:
     """
     Endpoint to get vitals data from the wearable device
-    :return: tuple: Data and HTTP status code
+    :return: tuple[Response, HTTPStatus]: Vitals data and HTTP status code
 
     Endpoint-> /vitals_data_retrieving/get_vitals_data
     """

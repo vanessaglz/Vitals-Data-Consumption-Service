@@ -10,7 +10,8 @@ class VitalsDataRetrievingService:
         """
         Initialize the service with the device data retriever
 
-        :param device_data_retriever: WearableDeviceDataRetriever: The device data retriever passed by dependency injection
+        :param device_data_retriever: WearableDeviceDataRetriever: The device data retriever passed by dependency
+        injection
         """
         self.device_data_retriever = device_data_retriever
 
@@ -39,7 +40,7 @@ class VitalsDataRetrievingService:
         Refresh the access token from the wearable device API in the database
 
         :param user_id: str: User ID
-        :return: tuple: Access token and refresh token
+        :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
         """
         document_id = hash_data(user_id)
         return self.device_data_retriever.refresh_access_token(document_id)
@@ -48,16 +49,16 @@ class VitalsDataRetrievingService:
         """
         Update all access tokens from the wearable device API in the database
 
-        :return: tuple: Operation status and HTTP status code
+        :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
         """
         return self.device_data_retriever.update_all_tokens()
 
-    def get_user_info_from_api(self, user_id) -> Response:
+    def get_user_info_from_api(self, user_id) -> tuple[Response, HTTPStatus]:
         """
         Get user info from the wearable device API
 
         :param user_id: str: User ID
-        :return: str: User info
+        :return: tuple[Response, HTTPStatus]: User info and HTTP status code
         """
         return self.device_data_retriever.get_user_info(user_id)
 
@@ -68,7 +69,7 @@ class VitalsDataRetrievingService:
 
         :param user_id: str: User ID
         :param date: str: Date in 'YYYY-MM-DD' format
-        :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
-        :return: tuple: Data and HTTP status code
+        :param scope: list[str]: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :return: tuple[Response, HTTPStatus]: Data and HTTP status code
         """
         return self.device_data_retriever.retrieve_data(user_id, date, scope)

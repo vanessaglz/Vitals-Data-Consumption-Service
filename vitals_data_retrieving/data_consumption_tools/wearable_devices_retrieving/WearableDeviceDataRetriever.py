@@ -56,13 +56,14 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def retrieve_data(self, token, date, scope) -> tuple[Response, HTTPStatus]:
+    def retrieve_data(self, token, date, scope, db_storage) -> tuple[Response, HTTPStatus]:
         """
         Retrieve data from the wearable device by querying the API
 
         :param token: str: Authorization token
         :param date: str: Date in 'YYYY-MM-DD' format
         :param scope: list[str]: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :param db_storage: bool: Store data in the database
         :return: tuple[Response, HTTPStatus]: Data and HTTP status code
         """
         pass

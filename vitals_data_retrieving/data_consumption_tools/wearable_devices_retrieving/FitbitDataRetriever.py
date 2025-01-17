@@ -13,6 +13,8 @@ import os
 import requests
 import base64
 
+from ..Entities.VitalsDataBase import VitalsDataBase
+
 
 def get_token_from_database(document_id) -> tuple[str, ResponseCode]:
     """
@@ -181,13 +183,15 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         return data, status
 
     def retrieve_data(
-            self, user_id: str = None, date: str = None, scope: list[str] = None) -> tuple[Response, HTTPStatus]:
+            self, user_id: str = None, date: str = None, scope: list[str] = None, db_storage: bool = False) \
+            -> tuple[Response, HTTPStatus]:
         """
         Retrieve data from the wearable device by querying the API
 
         :param user_id: str: User ID
         :param date: str: Date in 'YYYY-MM-DD' format
         :param scope: list[str]: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :param db_storage: bool: Store data in the database
         :return: tuple[Response, HTTPStatus]: Data and HTTP status code
         """
         document_id = hash_data(user_id)
@@ -196,10 +200,11 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         if response_code == ResponseCode.ERROR_NOT_FOUND:
             return jsonify({'error': 'User not found'}), HTTPStatus.NOT_FOUND
 
-        data, status = self.make_data_query(document_id, token, date, scope)
+        data, status = self.make_data_query(document_id, token, date, scope, db_storage)
         return data, status
 
-    def make_data_query(self, document_id, token: str = None, date: str = None, scope: list[str] = None) \
+    def make_data_query(
+            self, document_id, token: str = None, date: str = None, scope: list[str] = None, db_storage: bool = False) \
             -> tuple[Response, HTTPStatus]:
         """
         Fetches data from Fitbit API for each element in the provided scope.
@@ -209,6 +214,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         :param token: str: Access token for the Fitbit API.
         :param date: date: Date in 'YYYY-MM-DD' format.
         :param scope: list[str]: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :param db_storage: bool: Flag to store data in the database.
         :return: tuple[Response, HTTPStatus]: Combined data and HTTP status code.
         """
         try:
@@ -243,7 +249,13 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
                 else:
                     combined_data[element] = {"error": f"Operation {element} not found in FitbitQueryHandler"}
 
-            if successful_operations == total_operations:
+            if db_storage:
+                vitals_database = VitalsDataBase()
+                response = vitals_database.insert_document(document_id, date, combined_data)
+            else:
+                response = ResponseCode.SUCCESS
+
+            if response == ResponseCode.SUCCESS and (successful_operations == total_operations):
                 status = HTTPStatus.OK
             else:
                 status = HTTPStatus.INTERNAL_SERVER_ERROR

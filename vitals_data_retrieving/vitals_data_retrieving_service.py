@@ -1,3 +1,4 @@
+from vitals_data_retrieving.data_consumption_tools.Entities.CryptoUtils import hash_data
 from vitals_data_retrieving.data_consumption_tools.wearable_devices_retrieving.WearableDeviceDataRetriever import \
     WearableDeviceDataRetriever
 from flask import Response
@@ -40,7 +41,8 @@ class VitalsDataRetrievingService:
         :param user_id: str: User ID
         :return: tuple: Access token and refresh token
         """
-        return self.device_data_retriever.refresh_access_token(user_id)
+        document_id = hash_data(user_id)
+        return self.device_data_retriever.refresh_access_token(document_id)
 
     def update_all_tokens(self) -> tuple[Response, HTTPStatus]:
         """

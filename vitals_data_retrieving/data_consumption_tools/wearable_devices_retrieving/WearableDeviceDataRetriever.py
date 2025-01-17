@@ -26,11 +26,11 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
         pass
 
     @abstractmethod
-    def refresh_access_token(self, user_id) -> tuple[Response, HTTPStatus]:
+    def refresh_access_token(self, document_id) -> tuple[Response, HTTPStatus]:
         """
         Refresh the access token from the API
 
-        :param user_id: str: User ID
+        :param document_id: str: Document ID (hashed User ID)
         :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
         """
         pass

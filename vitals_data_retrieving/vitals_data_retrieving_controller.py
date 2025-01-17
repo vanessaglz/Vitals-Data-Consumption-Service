@@ -97,6 +97,7 @@ def get_vitals_data() -> tuple[Response, HTTPStatus]:
     user_id = data.get('user_id')
     date = data.get('date')
     scope = data.get('scope')
+    db_storage = data.get('db_storage', False)
     service = VitalsDataRetrievingService(data_retriever)
-    data, status = service.get_data_from_wearable_device_api(user_id, date, scope)
+    data, status = service.get_data_from_wearable_device_api(user_id, date, scope, db_storage)
     return data, status

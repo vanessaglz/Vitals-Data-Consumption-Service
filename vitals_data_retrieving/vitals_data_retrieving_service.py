@@ -63,13 +63,15 @@ class VitalsDataRetrievingService:
         return self.device_data_retriever.get_user_info(user_id)
 
     def get_data_from_wearable_device_api(
-            self, user_id: str = None, date: str = None, scope: list[str] = None) -> tuple[Response, HTTPStatus]:
+            self, user_id: str = None, date: str = None, scope: list[str] = None, db_storage: bool = False) \
+            -> tuple[Response, HTTPStatus]:
         """
         Get data from the wearable device API
 
         :param user_id: str: User ID
         :param date: str: Date in 'YYYY-MM-DD' format
         :param scope: list[str]: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :param db_storage: bool: Flag to store data in the database
         :return: tuple[Response, HTTPStatus]: Data and HTTP status code
         """
-        return self.device_data_retriever.retrieve_data(user_id, date, scope)
+        return self.device_data_retriever.retrieve_data(user_id, date, scope, db_storage)

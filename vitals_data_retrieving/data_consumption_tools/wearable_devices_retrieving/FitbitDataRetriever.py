@@ -4,6 +4,7 @@ from .DataScopeEnum import DataScopeEnum
 from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import UsersDataBase
 from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import decode_data
 from vitals_data_retrieving.data_consumption_tools.Entities.ResponseCode import ResponseCode
+from vitals_data_retrieving.data_consumption_tools.Entities.CryptoUtils import hash_data
 from http import HTTPStatus
 from dotenv import load_dotenv
 from flask import jsonify
@@ -13,15 +14,15 @@ import requests
 import base64
 
 
-def get_token_from_database(user_id) -> tuple[str, ResponseCode]:
+def get_token_from_database(document_id) -> tuple[str, ResponseCode]:
     """
     Get the token from the database
 
-    :param user_id: str: User ID
+    :param document_id: str: Document ID (hashed User ID)
     :return: tuple[str, ResponseCode]: Token and response code
     """
     data_base = UsersDataBase()
-    response_code, document = data_base.read_document(user_id)
+    response_code, document = data_base.read_document(document_id)
 
     if response_code == ResponseCode.ERROR_NOT_FOUND:
         return "", response_code
@@ -83,27 +84,29 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         refresh_token = token_response.get('refresh_token')
 
         data_base = UsersDataBase()
+        document_id = hash_data(user_id)
 
-        response_code, _ = data_base.read_document(user_id)
+        response_code, _ = data_base.read_document(document_id)
         if response_code == ResponseCode.ERROR_NOT_FOUND:
             data_base.insert_document(user_id, access_token, refresh_token)
             status = HTTPStatus.OK
         elif response_code == ResponseCode.SUCCESS:
-            data_base.update_document(user_id, access_token, refresh_token)
+            data_base.update_document(document_id, access_token, refresh_token)
             status = HTTPStatus.OK
         else:
             status = HTTPStatus.INTERNAL_SERVER_ERROR
         return status
 
-    def refresh_access_token(self, user_id) -> tuple[Response, HTTPStatus]:
+    def refresh_access_token(self, document_id) -> tuple[Response, HTTPStatus]:
         """
         Refresh the access token from the API
 
-        :param user_id: str: User ID
+        :param document_id: str: Document ID (Hashed User ID)
         :return: tuple: Operation status and HTTP status code
         """
         data_base = UsersDataBase()
-        response_code, document = data_base.read_document(user_id)
+
+        response_code, document = data_base.read_document(document_id)
 
         if response_code == ResponseCode.ERROR_NOT_FOUND:
             return jsonify({'error': 'User not found'}), HTTPStatus.NOT_FOUND
@@ -120,7 +123,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         new_access_token = refresh_token_response.get('access_token')
         new_refresh_token = refresh_token_response.get('refresh_token')
 
-        status = data_base.update_document(user_id, new_access_token, new_refresh_token)
+        status = data_base.update_document(document_id, new_access_token, new_refresh_token)
 
         if status == ResponseCode.SUCCESS:
             return jsonify({'status': 'Token refreshed successfully'}), HTTPStatus.OK
@@ -168,12 +171,13 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         :param user_id: str: User ID
         :return: user info
         """
-        token, response_code = get_token_from_database(user_id)
+        document_id = hash_data(user_id)
+        token, response_code = get_token_from_database(document_id)
 
         if response_code == ResponseCode.ERROR_NOT_FOUND:
             return jsonify({'error': 'User not found'})
 
-        user_info = self.make_data_query(user_id=user_id, token=token, scope=["user_info"])
+        user_info = self.make_data_query(document_id=document_id, token=token, scope=["user_info"])
         return user_info
 
     def retrieve_data(
@@ -186,20 +190,21 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
         :return: tuple: Data and HTTP status code
         """
-        token, response_code = get_token_from_database(user_id)
+        document_id = hash_data(user_id)
+        token, response_code = get_token_from_database(document_id)
 
         if response_code == ResponseCode.ERROR_NOT_FOUND:
             return jsonify({'error': 'User not found'}), HTTPStatus.NOT_FOUND
 
-        data = self.make_data_query(user_id, token, date, scope)
+        data = self.make_data_query(document_id, token, date, scope)
         return data, HTTPStatus.OK
 
-    def make_data_query(self, user_id, token: str = None, date: str = None, scope: list[str] = None) -> Response:
+    def make_data_query(self, document_id, token: str = None, date: str = None, scope: list[str] = None) -> Response:
         """
         Fetches data from Fitbit API for each element in the provided scope.
         Dynamically calls the associated method from FitbitQueryHandler.
 
-        :param user_id: str: User ID.
+        :param document_id: str: Document ID (hashed User ID).
         :param token: Access token for the Fitbit API.
         :param date: Date in 'YYYY-MM-DD' format.
         :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
@@ -226,8 +231,8 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
                             combined_data[element] = response
                             break
                         elif status == HTTPStatus.UNAUTHORIZED:
-                            self.refresh_access_token(user_id)
-                            new_token, _ = get_token_from_database(user_id)
+                            self.refresh_access_token(document_id)
+                            new_token, _ = get_token_from_database(document_id)
                             query_handler.update_token(new_token)
                         else:
                             break

@@ -41,17 +41,17 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
         Update all access tokens from the wearable device API in the database
 
         :arg: None
-        :return: tuple: Operation status and HTTP status code
+        :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
         """
         pass
 
     @abstractmethod
-    def get_user_info(self, user_id) -> Response:
+    def get_user_info(self, user_id) -> tuple[Response, HTTPStatus]:
         """
         Get user info from the wearable device API
 
         :param user_id: str: User ID
-        :return: Response: User info
+        :return: tuple[Response, HTTPStatus]: User info and HTTP status code
         """
         pass
 
@@ -62,7 +62,7 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
 
         :param token: str: Authorization token
         :param date: str: Date in 'YYYY-MM-DD' format
-        :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :param scope: list[str]: List of data scopes to query (e.g., "sleep", "heart_rate").
         :return: tuple[Response, HTTPStatus]: Data and HTTP status code
         """
         pass

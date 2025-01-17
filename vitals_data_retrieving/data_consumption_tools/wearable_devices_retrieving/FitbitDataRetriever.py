@@ -1,6 +1,6 @@
 from .WearableDeviceDataRetriever import WearableDeviceDataRetriever
 from .FitbitQueryHandler import FitbitQueryHandler
-from .DataScopeEnum import DataScopeEnum
+from .DataEndpointsEnum import DataEndpointsEnum
 from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import UsersDataBase
 from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import decode_data
 from vitals_data_retrieving.data_consumption_tools.Entities.ResponseCode import ResponseCode
@@ -37,7 +37,7 @@ def get_query_error_message(operation, status_code) -> dict:
 
     :param operation: str: Operation
     :param status_code: HTTPStatus: HTTP status code
-    :return: Response: Error response
+    :return: dict: Error response
     """
     if status_code == HTTPStatus.UNAUTHORIZED:
         return {'error': f'Unauthorized access. User token has no access to {operation} data'}
@@ -72,7 +72,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         """
         Get the authorization token
 
-        :param authorization_code: Authorization code
+        :param authorization_code: str: Authorization code
         :return: HTTPStatus: HTTP status code
         """
         authorization_string = self.get_authorization_string()
@@ -102,7 +102,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         Refresh the access token from the API
 
         :param document_id: str: Document ID (Hashed User ID)
-        :return: tuple: Operation status and HTTP status code
+        :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
         """
         data_base = UsersDataBase()
 
@@ -135,7 +135,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         Update all access tokens from the wearable device API in the database
 
         :arg: None
-        :return: tuple: Operation status and HTTP status code
+        :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
         """
         data_base = UsersDataBase()
         response_code, documents = data_base.get_all_documents()
@@ -164,21 +164,21 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         else:
             return jsonify({'error': 'Some tokens failed to update'}), HTTPStatus.INTERNAL_SERVER_ERROR
 
-    def get_user_info(self, user_id) -> Response:
+    def get_user_info(self, user_id) -> tuple[Response, HTTPStatus]:
         """
         Get user info from the wearable device API
 
         :param user_id: str: User ID
-        :return: user info
+        :return: tuple[Response, HTTPStatus]: User info and HTTP status code
         """
         document_id = hash_data(user_id)
         token, response_code = get_token_from_database(document_id)
 
         if response_code == ResponseCode.ERROR_NOT_FOUND:
-            return jsonify({'error': 'User not found'})
+            return jsonify({'error': 'User not found'}), HTTPStatus.NOT_FOUND
 
-        user_info = self.make_data_query(document_id=document_id, token=token, scope=["user_info"])
-        return user_info
+        data, status = self.make_data_query(document_id=document_id, token=token, scope=["user_info"])
+        return data, status
 
     def retrieve_data(
             self, user_id: str = None, date: str = None, scope: list[str] = None) -> tuple[Response, HTTPStatus]:
@@ -187,8 +187,8 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
 
         :param user_id: str: User ID
         :param date: str: Date in 'YYYY-MM-DD' format
-        :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
-        :return: tuple: Data and HTTP status code
+        :param scope: list[str]: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :return: tuple[Response, HTTPStatus]: Data and HTTP status code
         """
         document_id = hash_data(user_id)
         token, response_code = get_token_from_database(document_id)
@@ -196,39 +196,40 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         if response_code == ResponseCode.ERROR_NOT_FOUND:
             return jsonify({'error': 'User not found'}), HTTPStatus.NOT_FOUND
 
-        data = self.make_data_query(document_id, token, date, scope)
-        return data, HTTPStatus.OK
+        data, status = self.make_data_query(document_id, token, date, scope)
+        return data, status
 
-    def make_data_query(self, document_id, token: str = None, date: str = None, scope: list[str] = None) -> Response:
+    def make_data_query(self, document_id, token: str = None, date: str = None, scope: list[str] = None) \
+            -> tuple[Response, HTTPStatus]:
         """
         Fetches data from Fitbit API for each element in the provided scope.
         Dynamically calls the associated method from FitbitQueryHandler.
 
         :param document_id: str: Document ID (hashed User ID).
-        :param token: Access token for the Fitbit API.
-        :param date: Date in 'YYYY-MM-DD' format.
-        :param scope: List of data scopes to query (e.g., "sleep", "heart_rate").
-        :return: JSON response with combined data or error message.
+        :param token: str: Access token for the Fitbit API.
+        :param date: date: Date in 'YYYY-MM-DD' format.
+        :param scope: list[str]: List of data scopes to query (e.g., "sleep", "heart_rate").
+        :return: tuple[Response, HTTPStatus]: Combined data and HTTP status code.
         """
         try:
             query_handler = FitbitQueryHandler(token)
 
             combined_data = {}
 
-            for element in scope:
-                operation = DataScopeEnum[element].value
+            successful_operations = 0
+            total_operations = len(scope)
 
-                # Dynamically call the method on the query_handler
-                if hasattr(query_handler, operation):
-                    method = getattr(query_handler, operation)
+            for element in scope:
+                if element in DataEndpointsEnum.__members__:
 
                     status = None
 
                     for _ in range(3):
-                        response, status = method(date)
+                        response, status = query_handler.fetch_data(element, date)
 
                         if status == HTTPStatus.OK:
                             combined_data[element] = response
+                            successful_operations += 1
                             break
                         elif status == HTTPStatus.UNAUTHORIZED:
                             self.refresh_access_token(document_id)
@@ -238,14 +239,18 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
                             break
 
                     if status != HTTPStatus.OK:
-                        combined_data[element] = get_query_error_message(operation, status)
+                        combined_data[element] = get_query_error_message(element, status)
                 else:
-                    combined_data[element] = {"error": f"Operation {operation} not found in FitbitQueryHandler"}
+                    combined_data[element] = {"error": f"Operation {element} not found in FitbitQueryHandler"}
 
-            return jsonify(combined_data)
+            if successful_operations == total_operations:
+                status = HTTPStatus.OK
+            else:
+                status = HTTPStatus.INTERNAL_SERVER_ERROR
+            return jsonify(combined_data), status
 
         except Exception as e:
-            return jsonify({'error': f"An error occurred: {str(e)}"})
+            return jsonify({'error': f"An error occurred: {str(e)}"}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     def get_authorization_url(self) -> str:
         """
@@ -279,9 +284,9 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         """
         Get the request parameters for the token request
 
-        :param authorization_string: Authorization string
-        :param authorization_code: Authorization code
-        :return: tuple: Headers and data
+        :param authorization_string: str: Authorization string
+        :param authorization_code: str: Authorization code
+        :return: tuple[dict,dict]: Headers and data
         """
         headers = {
             "authorization": f"Basic {authorization_string}",
@@ -302,9 +307,9 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         """
         Get the request parameters for the refresh token request
 
-        :param authorization_string: Authorization string
-        :param refresh_token: Refresh token
-        :return: tuple: Headers and data
+        :param authorization_string: str: Authorization string
+        :param refresh_token: str: Refresh token
+        :return: tuple[dict,dict]: Headers and data
         """
         headers = {
             "authorization": f"Basic {authorization_string}",
@@ -325,9 +330,9 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         """
         Make a token request to Fitbit API
 
-        :param headers: Headers for the request
-        :param data: Data for the request
-        :return: Token request response JSON
+        :param headers: dict: Headers for the request
+        :param data: dict: Data for the request
+        :return: dict: Token request response JSON
         """
         token_response = requests.post(self.TOKEN_URL, headers=headers, data=data)
         return token_response.json()

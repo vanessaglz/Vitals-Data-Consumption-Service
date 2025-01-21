@@ -101,3 +101,18 @@ def get_vitals_data() -> tuple[Response, HTTPStatus]:
     service = VitalsDataRetrievingService(data_retriever)
     data, status = service.get_data_from_wearable_device_api(user_id, date, scope, db_storage)
     return data, status
+
+
+@vitals_data_retrieving_api.route('/get_daily_vitals_data', methods=['POST'])
+def get_daily_vitals_data() -> tuple[Response, HTTPStatus]:
+    """
+    Endpoint to get daily vitals data from all the users stored in the database and store it in the database
+    :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
+
+    Endpoint-> /vitals_data_retrieving/get_daily_vitals_data
+    """
+    data = request.get_json()
+    date = data.get('date')
+    service = VitalsDataRetrievingService(data_retriever)
+    data, status = service.get_daily_vitals_data_from_wearable_device_api(date)
+    return data, status

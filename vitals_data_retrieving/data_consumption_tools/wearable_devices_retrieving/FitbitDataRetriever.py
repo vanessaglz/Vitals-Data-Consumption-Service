@@ -2,6 +2,7 @@ from .WearableDeviceDataRetriever import WearableDeviceDataRetriever
 from .FitbitQueryHandler import FitbitQueryHandler
 from .DataEndpointsEnum import DataEndpointsEnum
 from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import UsersDataBase
+from vitals_data_retrieving.data_consumption_tools.Entities.VitalsDataBase import VitalsDataBase
 from vitals_data_retrieving.data_consumption_tools.Entities.UsersDataBase import decode_data
 from vitals_data_retrieving.data_consumption_tools.Entities.ResponseCode import ResponseCode
 from vitals_data_retrieving.data_consumption_tools.Entities.CryptoUtils import hash_data
@@ -12,8 +13,6 @@ from werkzeug import Response
 import os
 import requests
 import base64
-
-from ..Entities.VitalsDataBase import VitalsDataBase
 
 
 def get_token_from_database(document_id) -> tuple[str, ResponseCode]:
@@ -31,6 +30,23 @@ def get_token_from_database(document_id) -> tuple[str, ResponseCode]:
 
     decoded_document = decode_data(document)
     return decoded_document["token"], response_code
+
+
+def get_all_documents() -> tuple[list, HTTPStatus]:
+    """
+    Retrieve all documents from the database and handle errors.
+
+    :return: tuple[list, HTTPStatus]: List of documents and HTTP status code
+    """
+    data_base = UsersDataBase()
+    response_code, documents = data_base.get_all_documents()
+
+    if response_code == ResponseCode.ERROR_NOT_FOUND:
+        return [], HTTPStatus.NOT_FOUND
+    elif response_code == ResponseCode.ERROR_UNKNOWN:
+        return [], HTTPStatus.INTERNAL_SERVER_ERROR
+
+    return documents, HTTPStatus.OK
 
 
 def get_query_error_message(operation, status_code) -> dict:
@@ -139,16 +155,12 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         :arg: None
         :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
         """
-        data_base = UsersDataBase()
-        response_code, documents = data_base.get_all_documents()
-
-        if response_code == ResponseCode.ERROR_NOT_FOUND:
-            return jsonify({'error': 'No users found'}), HTTPStatus.NOT_FOUND
-        elif response_code == ResponseCode.ERROR_UNKNOWN:
-            return jsonify({'error': 'Unknown error occurred'}), HTTPStatus.INTERNAL_SERVER_ERROR
+        documents, status = get_all_documents()
+        if status != HTTPStatus.OK:
+            return jsonify(
+                {'error': 'No users found' if status == HTTPStatus.NOT_FOUND else 'Unknown error occurred'}), status
 
         total_documents = len(documents)
-
         updated_tokens = 0
 
         for document in documents:
@@ -202,6 +214,39 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
 
         data, status = self.make_data_query(document_id, token, date, scope, db_storage)
         return data, status
+
+    def get_daily_vitals_data(self, date) -> tuple[Response, HTTPStatus]:
+        """
+        Get daily vitals data from all the users stored in the database and store it in the database
+
+        :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
+        """
+        documents, status = get_all_documents()
+        if status != HTTPStatus.OK:
+            return jsonify(
+                {'error': 'No users found' if status == HTTPStatus.NOT_FOUND else 'Unknown error occurred'}), status
+
+        total_documents = len(documents)
+        successful_operations = 0
+
+        scope = ["heart_rate", "respiratory_rate", "sleep", "oxygen_saturation", "activity"]
+
+        for document in documents:
+            decoded_document = decode_data(document)
+            user_id = decoded_document["user_id"]
+            token = decoded_document["token"]
+
+            _, status = self.make_data_query(document_id=user_id, token=token, date=date, scope=scope, db_storage=True)
+
+            if status == HTTPStatus.OK:
+                successful_operations += 1
+
+        if successful_operations == total_documents:
+            return jsonify({'status': 'All daily vitals data fetched successfully'}), HTTPStatus.OK
+        elif successful_operations == 0:
+            return jsonify({'error': 'Failed to fetch any daily vitals data'}), HTTPStatus.INTERNAL_SERVER_ERROR
+        else:
+            return jsonify({'error': 'Some daily vitals data failed to fetch'}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     def make_data_query(
             self, document_id, token: str = None, date: str = None, scope: list[str] = None, db_storage: bool = False) \

@@ -67,3 +67,13 @@ class WearableDeviceDataRetriever(metaclass=ABCMeta):
         :return: tuple[Response, HTTPStatus]: Data and HTTP status code
         """
         pass
+
+    @abstractmethod
+    def get_daily_vitals_data(self, date) -> tuple[Response, HTTPStatus]:
+        """
+        Get daily vitals data from all the users stored in the database and store it in the database
+
+        :param date: str: Date in 'YYYY-MM-DD' format
+        :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
+        """
+        pass

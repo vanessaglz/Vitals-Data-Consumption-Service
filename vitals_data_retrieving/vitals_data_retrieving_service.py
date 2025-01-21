@@ -83,4 +83,4 @@ class VitalsDataRetrievingService:
         :param date: str: Date in 'YYYY-MM-DD' format
         :return: tuple[Response, HTTPStatus]: Operation status and HTTP status code
         """
-        return self.device_data_retriever.get_daily_vitals_data()
+        return self.device_data_retriever.get_daily_vitals_data(date)

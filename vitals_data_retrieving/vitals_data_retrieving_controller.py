@@ -114,5 +114,5 @@ def get_daily_vitals_data() -> tuple[Response, HTTPStatus]:
     data = request.get_json()
     date = data.get('date')
     service = VitalsDataRetrievingService(data_retriever)
-    data, status = service.get_daily_vitals_data_from_wearable_device_api(date)
-    return data, status
+    response, status = service.get_daily_vitals_data_from_wearable_device_api(date)
+    return response, status

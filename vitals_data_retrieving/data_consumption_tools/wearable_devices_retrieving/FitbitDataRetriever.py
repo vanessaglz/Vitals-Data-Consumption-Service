@@ -176,7 +176,7 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         elif updated_tokens == 0:
             return jsonify({'error': 'Failed to update any tokens'}), HTTPStatus.INTERNAL_SERVER_ERROR
         else:
-            return jsonify({'error': 'Some tokens failed to update'}), HTTPStatus.INTERNAL_SERVER_ERROR
+            return jsonify({'error': 'Some tokens failed to update'}), HTTPStatus.PARTIAL_CONTENT
 
     def get_user_info(self, user_id) -> tuple[Response, HTTPStatus]:
         """
@@ -228,8 +228,9 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
 
         total_documents = len(documents)
         successful_operations = 0
+        partial_operations = 0
 
-        scope = ["heart_rate", "respiratory_rate", "sleep", "oxygen_saturation", "activity"]
+        scope = ["sleep", "heart_rate", "heart_rate_variability", "breathing_rate", "spO2", "activity"]
 
         for document in documents:
             decoded_document = decode_data(document)
@@ -240,13 +241,15 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
 
             if status == HTTPStatus.OK:
                 successful_operations += 1
+            if status == HTTPStatus.PARTIAL_CONTENT:
+                partial_operations += 1
 
         if successful_operations == total_documents:
             return jsonify({'status': 'All daily vitals data fetched successfully'}), HTTPStatus.OK
-        elif successful_operations == 0:
-            return jsonify({'error': 'Failed to fetch any daily vitals data'}), HTTPStatus.INTERNAL_SERVER_ERROR
+        elif partial_operations > 0:
+            return jsonify({'error': 'Some daily vitals data failed to fetch'}), HTTPStatus.PARTIAL_CONTENT
         else:
-            return jsonify({'error': 'Some daily vitals data failed to fetch'}), HTTPStatus.INTERNAL_SERVER_ERROR
+            return jsonify({'error': 'Failed to fetch any daily vitals data'}), HTTPStatus.INTERNAL_SERVER_ERROR
 
     def make_data_query(
             self, document_id, token: str = None, date: str = None, scope: list[str] = None, db_storage: bool = False) \
@@ -301,7 +304,9 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
                 response = ResponseCode.SUCCESS
 
             if response == ResponseCode.SUCCESS and (successful_operations == total_operations):
-                status = HTTPStatus.OK
+                status = ResponseCode.SUCCESS
+            elif successful_operations > 0:
+                status = HTTPStatus.PARTIAL_CONTENT
             else:
                 status = HTTPStatus.INTERNAL_SERVER_ERROR
             return jsonify(combined_data), status

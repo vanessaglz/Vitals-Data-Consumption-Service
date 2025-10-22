@@ -5,8 +5,11 @@ from dotenv import load_dotenv
 from flask import Blueprint, request, redirect
 from http import HTTPStatus
 from werkzeug import Response
+from user_metrics_tracker import user_tracker
 import os
+import logging
 
+logger = logging.getLogger(__name__)
 
 vitals_data_retrieving_api = Blueprint('vitals_data_retrieving_api', __name__)
 
@@ -14,7 +17,8 @@ vitals_data_retrieving_api = Blueprint('vitals_data_retrieving_api', __name__)
 data_retriever = FitbitDataRetriever()
 
 
-@vitals_data_retrieving_api.route('/connect_to_api')
+#@vitals_data_retrieving_api.route('/connect_to_api')
+@vitals_data_retrieving_api.route('/connect_to_api', methods=['GET'])
 def connect_to_api() -> str:
     """
     Endpoint to connect to the API of the wearable device
@@ -22,8 +26,19 @@ def connect_to_api() -> str:
 
     Endpoint-> /vitals_data_retrieving/connect_to_api
     """
-    service = VitalsDataRetrievingService(data_retriever)
-    return service.get_access_to_api()
+    #service = VitalsDataRetrievingService(data_retriever)
+    #return service.get_access_to_api()
+    fitbit_auth_url = (
+        "https://www.fitbit.com/oauth2/authorize"
+        f"?response_type=code"
+        f"&client_id={os.getenv('CLIENT_ID')}"
+        f"&redirect_uri={os.getenv('REDIRECT_URI')}"
+        f"&scope=activity heartrate sleep profile"
+        f"&prompt=consent"
+        f"&disableThirdPartyLogin=false"
+    )
+    return redirect(fitbit_auth_url)
+
 
 
 @vitals_data_retrieving_api.route('/callback')
@@ -71,6 +86,7 @@ def update_all_tokens() -> tuple[Response, HTTPStatus]:
 
 
 @vitals_data_retrieving_api.route('/get_user_info', methods=['POST'])
+@user_tracker.track_user_operation('get_user_info')
 def get_user_info() -> tuple[Response, HTTPStatus]:
     """
     Endpoint to get user info from the wearable device
@@ -86,6 +102,7 @@ def get_user_info() -> tuple[Response, HTTPStatus]:
 
 
 @vitals_data_retrieving_api.route('/get_vitals_data', methods=['POST'])
+@user_tracker.track_user_operation('get_vitals_data')
 def get_vitals_data() -> tuple[Response, HTTPStatus]:
     """
     Endpoint to get vitals data from the wearable device

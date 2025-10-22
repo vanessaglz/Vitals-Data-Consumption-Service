@@ -2,10 +2,11 @@ from vitals_data_retrieving.vitals_data_retrieving_controller import vitals_data
 from flask import Flask, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
+from algorithm_profiler import performance_bp
 import os
 
-
 app = Flask(__name__)
+app.register_blueprint(performance_bp, url_prefix='/metrics')
 cors = CORS(app, resources={r"/vitals_data_retrieving/*": {"origins": "*"}})
 
 if os.path.exists('.env'):
@@ -26,4 +27,11 @@ def home():
     })
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    #app.run(debug=True)
+    #app.run(host="0.0.0.0", port=5000, debug=False)
+    host = os.getenv('HOST', '0.0.0.0')
+    port = int(os.getenv('PORT', 5000))
+    debug = os.getenv('ENVIRONMENT', 'development') == 'development'
+    # Evita múltiples registros de blueprints por reloader:
+    use_reloader = False if debug else False
+    app.run(host=host, port=port, debug=debug, use_reloader=use_reloader)

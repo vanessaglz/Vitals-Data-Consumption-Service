@@ -33,9 +33,10 @@ def connect_to_api() -> str:
         f"?response_type=code"
         f"&client_id={os.getenv('CLIENT_ID')}"
         f"&redirect_uri={os.getenv('REDIRECT_URI')}"
-        f"&scope=activity heartrate sleep profile"
+        #f"&scope=activity heartrate sleep profile"
+        f"&scope=activity+heartrate+sleep+profile"
         f"&prompt=consent"
-        f"&disableThirdPartyLogin=false"
+        #f"&disableThirdPartyLogin=false"
     )
     return redirect(fitbit_auth_url)
 
@@ -51,10 +52,11 @@ def callback() -> Response:
     """
     if os.path.exists('.env'):
         load_dotenv()
-    user_info_url = os.environ.get('USER_INFO_URL')
+    #user_info_url = os.environ.get('USER_INFO_URL')
     service = VitalsDataRetrievingService(data_retriever)
-    service.callback_action(request)
-    return redirect(user_info_url)
+    #service.callback_action(request)
+    #return redirect(user_info_url)
+    return "Autenticación completada correctamente."
 
 
 @vitals_data_retrieving_api.route('/refresh_token', methods=['POST'])

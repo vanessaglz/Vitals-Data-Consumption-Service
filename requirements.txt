@@ -32,3 +32,4 @@ opencensus-ext-azure
 psutil
 requests
 pymongo
+gunicorn

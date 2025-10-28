@@ -30,7 +30,7 @@ if __name__ == '__main__':
     #app.run(debug=True)
     #app.run(host="0.0.0.0", port=5000, debug=False)
     host = os.getenv('HOST', '0.0.0.0')
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', 8000))
     debug = os.getenv('ENVIRONMENT', 'development') == 'development'
     # Evita múltiples registros de blueprints por reloader:
     use_reloader = False if debug else False

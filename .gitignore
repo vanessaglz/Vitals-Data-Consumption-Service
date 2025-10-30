@@ -169,7 +169,6 @@ debug_*.py
 find_*.py
 performance_*.py
 generate_keys.py
-algorithm_profiler.py
 
 # Performance reports
 *.json

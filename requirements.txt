@@ -23,8 +23,6 @@ Flask-Cors~=5.0.0
 pymongo~=4.10.1
 cryptography~=44.0.0
 opencensus-ext-azure
-flask
-flask-cors
 python-dotenv
 azure-identity
 prometheus_client

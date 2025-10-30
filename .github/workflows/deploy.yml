@@ -23,4 +23,5 @@ jobs:
       
     - name: Test application starts
       run: |
+        export PYTHONPATH=.
         python -c "from app import app; print(' App imports correctly')"

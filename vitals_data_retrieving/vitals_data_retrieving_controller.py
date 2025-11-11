@@ -2,13 +2,12 @@ from vitals_data_retrieving.vitals_data_retrieving_service import VitalsDataRetr
 from vitals_data_retrieving.data_consumption_tools.wearable_devices_retrieving.FitbitDataRetriever import \
     FitbitDataRetriever
 from dotenv import load_dotenv
-from flask import Blueprint, request, redirect
+from flask import Blueprint, request, redirect, jsonify
 from http import HTTPStatus
 from werkzeug import Response
 from user_metrics_tracker import user_tracker
 import os
 import logging
-import jsonify
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +27,13 @@ def connect_to_api():
 
     Endpoint-> /vitals_data_retrieving/connect_to_api
     """
+    if os.path.exists('.env'):
+        load_dotenv()
     #service = VitalsDataRetrievingService(data_retriever)
     #return service.get_access_to_api()
     load_dotenv()
-    client_id = os.getenv("CLIENT_ID")
-    redirect_uri = os.getenv("REDIRECT_URI")
+    client_id = os.getenv("CLIENT_ID") or os.getenv("FITBIT_CLIENT_ID")
+    redirect_uri = os.getenv("REDIRECT_URI") or os.getenv("FITBIT_REDIRECT_URI")
 
     if not client_id or not redirect_uri:
         logger.error("CLIENT_ID o REDIRECT_URI faltantes en .env")
@@ -52,7 +53,8 @@ def connect_to_api():
 
 
 
-@vitals_data_retrieving_api.route('/callback')
+#@vitals_data_retrieving_api.route('/callback')
+@vitals_data_retrieving_api.route('/callback', methods=['GET'])
 #def callback() -> Response:
 def callback():
     """
@@ -61,27 +63,24 @@ def callback():
 
     Endpoint-> /vitals_data_retrieving/callback
     """
-    #if os.path.exists('.env'):
-    #    load_dotenv()
-    #user_info_url = os.environ.get('USER_INFO_URL')
-    #service = VitalsDataRetrievingService(data_retriever)
+    try:
+        if os.path.exists('.env'):
+            load_dotenv()
+        code = request.args.get('code')
+        if not code:
+            logger.error("Callback recibido sin 'code' en querystring")
+            return jsonify({"error": "Missing authorization code"}), HTTPStatus.BAD_REQUEST
+        #user_info_url = os.environ.get('USER_INFO_URL')
+        service = VitalsDataRetrievingService(data_retriever)
+        result, status = service.callback_action(request)
+        return jsonify(result), status
+    except Exception as e:
+        logger.exception("Error en get_user_info")
+        return jsonify({"error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR
     #service.callback_action(request)
     #return redirect(user_info_url)
     #return "Autenticación completada correctamente."
 
-    try:
-        load_dotenv()
-        code = request.args.get('code')
-        if not code:
-            return jsonify({"error": "Código de autorización no recibido"}), HTTPStatus.BAD_REQUEST
-
-        service = VitalsDataRetrievingService(data_retriever)
-        token_info = service.callback_action(code)
-        return jsonify({"message": "Autenticación completada", "token_info": token_info}), HTTPStatus.OK
-
-    except Exception as e:
-        logger.error(f"Error en callback: {e}")
-        return jsonify({"error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @vitals_data_retrieving_api.route('/refresh_token', methods=['POST'])
@@ -168,7 +167,10 @@ def get_vitals_data():
         date = data.get('date')
         scope = data.get('scope')
         db_storage = data.get('db_storage', False)
-
+        
+        if not user_id:
+            return jsonify({"error": "user_id missing"}), HTTPStatus.BAD_REQUEST
+        
         service = VitalsDataRetrievingService(data_retriever)
         vitals, status = service.get_data_from_wearable_device_api(user_id, date, scope, db_storage)
         return jsonify(vitals), status
@@ -192,8 +194,12 @@ def get_daily_vitals_data():
     #service = VitalsDataRetrievingService(data_retriever)
     #response, status = service.get_daily_vitals_data_from_wearable_device_api(date)
     #return response, status
-    data = request.get_json(force=True)
-    date = data.get('date')
-    service = VitalsDataRetrievingService(data_retriever)
-    response, status = service.get_daily_vitals_data_from_wearable_device_api(date)
-    return jsonify(response), status
+    try:
+        data = request.get_json(force=True)
+        date = data.get('date')
+        service = VitalsDataRetrievingService(data_retriever)
+        response, status = service.get_daily_vitals_data_from_wearable_device_api(date)
+        return jsonify(response), status
+    except Exception as e:
+        logger.exception("Error en get_daily_vitals_data")
+        return jsonify({"error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR

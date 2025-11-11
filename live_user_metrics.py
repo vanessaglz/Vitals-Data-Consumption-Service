@@ -1,6 +1,6 @@
 import requests
 import time
-import json
+import json, bson
 from datetime import datetime
 from pymongo import MongoClient
 import os
@@ -14,6 +14,15 @@ class LiveMetricsCollector:
             'requests': [],
             'user_activity': {}
         }
+
+    def convert_objectid(self, obj):
+        if isinstance(obj, bson.ObjectId):
+            return str(obj)
+        if isinstance(obj, dict):
+            return {k: self.convert_objectid(v) for k, v in obj.items()}
+        if isinstance(obj, list):
+            return [self.convert_objectid(i) for i in obj]
+        return obj
     
     def simulate_user_activity(self, user_count=5):
         #Simula actividad de usuarios reales
@@ -201,7 +210,8 @@ class LiveMetricsCollector:
             'detailed_requests': self.metrics['requests'][-100:]  # Últimas 100 requests
         }
         
-        # Guardar reporte
+        # Convertir y guardar reporte
+        report = self.convert_objectid(report)
         with open('live_metrics_report.json', 'w') as f:
             json.dump(report, f, indent=2)
         

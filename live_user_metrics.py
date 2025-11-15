@@ -1,10 +1,20 @@
 import requests
 import time
-import json, bson
+import json
+import bson
 from datetime import datetime
 from pymongo import MongoClient
 import os
 
+def convert_objectid(obj):
+    """Convierte recursivamente bson.ObjectId a str para json.dump"""
+    if isinstance(obj, bson.ObjectId):
+        return str(obj)
+    if isinstance(obj, dict):
+        return {k: convert_objectid(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [convert_objectid(i) for i in obj]
+    return obj
 
 class LiveMetricsCollector:
     def __init__(self, azure_url):
@@ -14,10 +24,30 @@ class LiveMetricsCollector:
             'requests': [],
             'user_activity': {}
         }
+
+        #Inicializar conexion MongoDB
+        conn_str = os.getenv("CONNECTION_STRING") or os.getenv("MONGODB_URI")
+        db_name = os.getenv("DATABASE_NAME") or os.getenv("MONGODB_DB_NAME") or "vitals_db"
+        self.mongo_client = None
+        self.mongo_db = None
+        self.mongo_collection_name = os.getenv("COLLECTION_NAME") or "metrics_user_live"
+
+        if conn_str:
+                try:
+                    self.mongo_client = MongoClient(conn_str, serverSelectionTimeoutMS=5000)
+                    # Forzar server_info para validar conexión
+                    self.mongo_client.server_info()
+                    self.mongo_db = self.mongo_client[db_name]
+                except Exception as e:
+                    print(f"⚠️ No se pudo conectar a MongoDB/CosmosDB al iniciar: {e}")
+                    self.mongo_client = None
+                    self.mongo_db = None
+        else:
+                print("⚠️ No hay CONNECTION_STRING ni MONGODB_URI en el entorno; no se guardarán métricas en BD.")
     
     def simulate_user_activity(self, user_count=5):
         #Simula actividad de usuarios reales
-        print(f"👥 SIMULANDO {user_count} USUARIOS ACTIVOS")
+        print(f" SIMULANDO {user_count} USUARIOS ACTIVOS")
         print("=" * 50)
         
         for i in range(user_count):
@@ -164,16 +194,18 @@ class LiveMetricsCollector:
         if success:
             user_activity['successful_operations'] += 1
         
-        try:
-            mongo_uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017/vitals_db")
-            client = MongoClient(mongo_uri)
-            db = client.get_default_database()
-            db['metrics_user_live'].insert_one(metric)
-        except Exception as e:
-            print(f" Error guardando métrica en MongoDB: {e}")
-    
+        #Intentar guardar en MongoDB sino log
+        if self.mongo_db:
+            try:
+                col = self.mongo_db[self.mongo_collection_name]
+                col.insert_one(metric)
+            except Exception as e:
+                print(f" Error guardando métrica en MongoDB: {e}")
+        else:
+            pass 
+
     def generate_live_report(self):
-        #Genera reporte en tiempo real
+        #Generar reporte en tiempo real
         total_requests = len(self.metrics['requests'])
         successful_requests = sum(1 for r in self.metrics['requests'] if r['success'])
         
@@ -200,21 +232,13 @@ class LiveMetricsCollector:
             'user_activity': self.metrics['user_activity'],
             'detailed_requests': self.metrics['requests'][-100:]  # Últimas 100 requests
         }
-        def convert_objectid(obj):
-            # Convierte recursivamente bson.ObjectId a str para json.dump
-            if isinstance(obj, bson.ObjectId):
-                return str(obj)
-            if isinstance(obj, dict):
-                return {k: convert_objectid(v) for k, v in obj.items()}
-            if isinstance(obj, list):
-                return [convert_objectid(i) for i in obj]
-            return obj
+        
         # Convertir y guardar reporte
-        report_serializable = convert_objectid(report)
+        safe_report = convert_objectid(report)
         with open('live_metrics_report.json', 'w') as f:
             json.dump(report, f, indent=2)
         
-        return report
+        return safe_report
 
 # Uso
 if __name__ == "__main__":

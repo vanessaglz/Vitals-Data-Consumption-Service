@@ -4,7 +4,6 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 from algorithm_profiler import performance_bp
 import os
-
 app = Flask(__name__)
 app.register_blueprint(performance_bp, url_prefix='/metrics')
 cors = CORS(app, resources={r"/vitals_data_retrieving/*": {"origins": "*"}})

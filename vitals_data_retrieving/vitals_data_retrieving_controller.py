@@ -2,13 +2,12 @@ from vitals_data_retrieving.vitals_data_retrieving_service import VitalsDataRetr
 from vitals_data_retrieving.data_consumption_tools.wearable_devices_retrieving.FitbitDataRetriever import \
     FitbitDataRetriever
 from dotenv import load_dotenv
-from flask import Blueprint, request, redirect
+from flask import Blueprint, request, redirect, jsonify
 from http import HTTPStatus
 from werkzeug import Response
 from user_metrics_tracker import user_tracker
 import os
 import logging
-import jsonify
 
 logger = logging.getLogger(__name__)
 
@@ -78,14 +77,21 @@ def callback():
         
         service = VitalsDataRetrievingService(data_retriever)
         result, status = service.callback_action(request)
-        return jsonify({
-            "message": "Autenticación completada",
-            "fitbit_response": result
-        }), HTTPStatus.OK
-
+        return jsonify({"debug_code": code}), 200
     except Exception as e:
-        logger.error(f"Error en callback OAuth de Fitbit: {e}")
-        return jsonify({"error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR
+        import traceback
+        return jsonify({
+            "error": str(e),
+            "trace": traceback.format_exc()
+        }), 500
+        #return jsonify({
+        #    "message": "Autenticación completada",
+        #    "fitbit_response": result
+        #}), HTTPStatus.OK
+
+    #except Exception as e:
+    #    logger.error(f"Error en callback OAuth de Fitbit: {e}")
+    #    return jsonify({"error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @vitals_data_retrieving_api.route('/refresh_token', methods=['POST'])

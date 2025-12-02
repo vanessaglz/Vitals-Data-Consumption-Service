@@ -3,6 +3,8 @@ from vitals_data_retrieving.data_consumption_tools.wearable_devices_retrieving.W
     WearableDeviceDataRetriever
 from flask import Response
 from http import HTTPStatus
+import logging
+logger = logging.getLogger(__name__)
 
 
 class VitalsDataRetrievingService:
@@ -24,16 +26,35 @@ class VitalsDataRetrievingService:
         """
         return self.device_data_retriever.connect_to_api()
 
-    def callback_action(self, authorization_response) -> HTTPStatus:
+    def callback_action(self, request) -> tuple[dict, HTTPStatus]:
         """
         Handle the callback from the wearable device API
 
         :param authorization_response: str: URL
         :return: HTTPStatus: HTTP status code
         """
-        authorization_code = authorization_response.args.get('code')  # Get the authorization code from the URL
-        status = self.device_data_retriever.get_access_token(authorization_code)
-        return status
+        authorization_code = request.args.get('code')
+        if not authorization_code:
+            return {"error": "missing code"}, HTTPStatus.BAD_REQUEST
+
+        token_result, status = self.device_data_retriever.get_access_token(authorization_code)
+        # Si hay error
+        if status != HTTPStatus.OK:
+            return token_result, status
+
+        # token_result contiene user_id
+        user_id = token_result.get("user_id")
+        access_token = token_result.get("access_token")
+        refresh_token = token_result.get("refresh_token")
+
+        # para carrear el token
+        try:
+            # document_id = hash_data(user_id)  # ya user_id no es None
+            # users_db.insert_document(document_id, access_token, refresh_token)
+            return {"message": "tokens obtained", "user_id": user_id}, HTTPStatus.OK
+        except Exception as e:
+            logger.exception("Error guardando tokens")
+            return {"error": "db error", "details": str(e)}, HTTPStatus.INTERNAL_SERVER_ERROR
 
     def refresh_access_token(self, user_id) -> tuple[Response, HTTPStatus]:
         """

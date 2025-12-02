@@ -13,7 +13,8 @@ from werkzeug import Response
 import os
 import requests
 import base64
-
+import logging
+logger = logging.getLogger(__name__)
 
 def get_token_from_database(document_id) -> tuple[str, ResponseCode]:
     """
@@ -86,34 +87,92 @@ class FitbitDataRetriever(WearableDeviceDataRetriever):
         authorization_url = self.get_authorization_url()
         return authorization_url
 
-    def get_access_token(self, authorization_code) -> HTTPStatus:
+    def get_access_token(self, authorization_code: str):
         """
         Get the authorization token
 
         :param authorization_code: str: Authorization code
         :return: HTTPStatus: HTTP status code
         """
-        authorization_string = self.get_authorization_string()
-        headers, data = self.get_request_params_for_token(authorization_string, authorization_code)
-        token_response = self.make_token_request(headers, data)
+        try:
+            if not authorization_code:
+                return {"error": "authorization_code missing"}, HTTPStatus.BAD_REQUEST
 
-        user_id = token_response.get('user_id')
-        access_token = token_response.get('access_token')
-        refresh_token = token_response.get('refresh_token')
+            client_id = os.getenv("CLIENT_ID")
+            client_secret = os.getenv("CLIENT_SECRET")
+            redirect_uri = os.getenv("REDIRECT_URI") 
 
-        data_base = UsersDataBase()
-        document_id = hash_data(user_id)
+            if not client_id or not client_secret or not redirect_uri:
+                logger.error("Faltan CLIENT_ID/CLIENT_SECRET/REDIRECT_URI en entorno")
+                return {"error": "Fitbit client credentials or redirect URI missing"}, HTTPStatus.INTERNAL_SERVER_ERROR
 
-        response_code, _ = data_base.read_document(document_id)
-        if response_code == ResponseCode.ERROR_NOT_FOUND:
-            data_base.insert_document(user_id, access_token, refresh_token)
-            status = HTTPStatus.OK
-        elif response_code == ResponseCode.SUCCESS:
-            data_base.update_document(document_id, access_token, refresh_token)
-            status = HTTPStatus.OK
-        else:
-            status = HTTPStatus.INTERNAL_SERVER_ERROR
-        return status
+            token_url = "https://api.fitbit.com/oauth2/token"
+
+            # Basic auth header (client_id:client_secret) in base64
+            auth_header = base64.b64encode(f"{client_id}:{client_secret}".encode()).decode()
+            headers = {
+                "Authorization": f"Basic {auth_header}",
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            #body como form-url
+            payload = {
+                "client_id": client_id,
+                "grant_type": "authorization_code",
+                "redirect_uri": redirect_uri,
+                "code": authorization_code
+            }
+            logger.info("Enviando token exchange a Fitbit")
+            resp = requests.post(token_url, headers=headers, data=payload, timeout=15)
+            logger.info(f"Token exchange response status: {resp.status_code}")
+            
+            #obtener body para debug
+            try:
+                token_data = resp.json()
+            except Exception:
+                token_data = {"raw_text": resp.text}
+
+            if resp.status_code != 200:
+                logger.error(f"Token exchange failed: {resp.status_code} - {token_data}")
+                return {"error": "Token exchange failed", "details": token_data}, HTTPStatus(resp.status_code)
+            #si ok
+            access_token = token_data.get("access_token")
+            refresh_token = token_data.get("refresh_token")
+            # Fitbit devuelve user_id en otro campo
+            user_id = token_data.get("user_id") or token_data.get("user", {}).get("encodedId")
+
+            # Si no vino user_id, pedir perfil con access_token
+            if not user_id and access_token:
+                profile_url = "https://api.fitbit.com/1/user/-/profile.json"
+                logger.info("User_id no provisto en token response, consultando profile endpoint")
+                profile_resp = requests.get(profile_url, headers={"Authorization": f"Bearer {access_token}"}, timeout=10)
+                if profile_resp.status_code == 200:
+                    try:
+                        profile_json = profile_resp.json()
+                        user = profile_json.get("user", {})
+                        user_id = user.get("encodedId") or user.get("userId") or user.get("id")
+                    except Exception as ex:
+                        logger.exception("Error parseando profile.json")
+                else:
+                    logger.warning(f"Profile request failed: {profile_resp.status_code} {profile_resp.text}")
+
+            if not user_id:
+                logger.error("No se pudo obtener user_id tras intercambio de token.")
+                return {"error": "user_id not found after token exchange"}, HTTPStatus.INTERNAL_SERVER_ERROR
+
+            # Una vez con id_user, token se procede con logica de DB
+            logger.info(f"Token exchange completed OK for user: {user_id}")
+            return {
+                "user_id": user_id,
+                "access_token": access_token,
+                "refresh_token": refresh_token,
+                **token_data
+            }, HTTPStatus.OK
+        except requests.exceptions.RequestException as rexc:
+            logger.exception("Network error during token exchange")
+            return {"error": "network error during token exchange", "details": str(rexc)}, HTTPStatus.INTERNAL_SERVER_ERROR
+        except Exception as exc:
+            logger.exception("Excepcion en get_access_token")
+            return {"error": "Exception during token exchange", "details": str(exc)}, HTTPStatus.INTERNAL_SERVER_ERROR
 
     def refresh_access_token(self, document_id) -> tuple[Response, HTTPStatus]:
         """

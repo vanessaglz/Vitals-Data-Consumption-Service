@@ -71,27 +71,32 @@ def callback():
     try:
         load_dotenv()
         code = request.args.get('code')
+        #log para debug
+        logger.info(f"Callback recibido. code={code}")
+        
         if not code:
             logger.error("Callback recibido sin 'code'")
             return jsonify({"error": "Missing authorization code"}), HTTPStatus.BAD_REQUEST
         
         service = VitalsDataRetrievingService(data_retriever)
         result, status = service.callback_action(request)
-        return jsonify({"debug_code": code}), 200
+        #Log del result para debug
+        logger.info(f"callback_action result: {result} status:{status}")
+        
+        return jsonify(result), status
+    
     except Exception as e:
         import traceback
+        logger.exception("Excepción en callback")
         return jsonify({
             "error": str(e),
             "trace": traceback.format_exc()
-        }), 500
+        }), HTTPStatus.INTERNAL_SERVER_ERROR
         #return jsonify({
         #    "message": "Autenticación completada",
         #    "fitbit_response": result
         #}), HTTPStatus.OK
 
-    #except Exception as e:
-    #    logger.error(f"Error en callback OAuth de Fitbit: {e}")
-    #    return jsonify({"error": str(e)}), HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 @vitals_data_retrieving_api.route('/refresh_token', methods=['POST'])
